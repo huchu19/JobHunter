@@ -1,26 +1,134 @@
 @import "tailwindcss";
 
+/*
+ * UK Sponsor Finder — design system
+ * Modern SaaS (light), teal/cyan accent on cool slate neutrals.
+ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surfaces */
+  --background: #f6f9fa;
+  --surface: #ffffff;
+  --surface-muted: #f1f5f6;
+
+  /* Text */
+  --foreground: #0b1f2a;
+  --muted: #5b7682;
+  --muted-2: #8aa1ab;
+
+  /* Brand — teal/cyan */
+  --brand: #12b3a6;
+  --brand-strong: #0e9488;
+  --brand-soft: #d8f3ef;
+  --brand-contrast: #ffffff;
+
+  /* Dark hero / panels */
+  --ink: #07212e;
+  --ink-2: #0c2c3c;
+
+  /* Lines & states */
+  --border: #e2e9ec;
+  --ring: #12b3a6;
+  --success: #0f9d6b;
+  --warning: #c9870a;
+  --danger: #e1483b;
+
+  --radius: 0.875rem;
+  --shadow-sm: 0 1px 2px rgba(11, 31, 42, 0.05);
+  --shadow: 0 4px 16px -4px rgba(11, 31, 42, 0.10);
+  --shadow-lg: 0 18px 48px -12px rgba(11, 31, 42, 0.22);
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-muted: var(--muted);
+  --color-muted-2: var(--muted-2);
+
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+
+  --color-border: var(--border);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --radius-card: var(--radius);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Lock to the light Modern-SaaS palette regardless of OS preference. */
+html {
+  color-scheme: light;
+}
+
+* {
+  border-color: var(--border);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
+
+/* Display headings — tight, two-tone like the marketing hero */
+.display {
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.02;
+}
+
+.text-gradient-brand {
+  background: linear-gradient(92deg, var(--brand) 0%, #2bd4c0 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Reusable surface card */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Dark panel (kanban / hero blocks) */
+.panel-ink {
+  background:
+    radial-gradient(120% 120% at 0% 0%, #103342 0%, transparent 55%),
+    linear-gradient(180deg, var(--ink-2) 0%, var(--ink) 100%);
+  color: #e6f1f4;
+}
+
+/* Brand button */
+.btn-brand {
+  background: linear-gradient(180deg, var(--brand) 0%, var(--brand-strong) 100%);
+  color: var(--brand-contrast);
+  box-shadow: 0 6px 16px -6px rgba(14, 148, 136, 0.6);
+}
+.btn-brand:hover {
+  filter: brightness(1.05);
+}
+
+/* Scrollbars in panels */
+.thin-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: rgba(91, 118, 130, 0.35);
+  border-radius: 999px;
+}
+.thin-scroll::-webkit-scrollbar-track { background: transparent; }
+
+input::placeholder,
+textarea::placeholder { color: var(--muted-2); }

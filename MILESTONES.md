@@ -24,6 +24,65 @@ Core job tracking with live sponsor search.
 
 ---
 
+## ✅ Milestone 1.5: Application Profile & Resume Autofill
+
+**Status:** Shipped · May 31, 2026
+**Priority:** High
+
+### Reusable Application Profile
+
+Fill out the answers every job application asks for once, then reuse them everywhere.
+
+**What:**
+- A single **Application Profile** (`/profile`) storing contact details, work
+  authorization / sponsorship, notice period, salary expectation, education,
+  work history, and free-text blocks ("about you", skills).
+- **Resume autofill:** upload a PDF (or paste text) → the Claude API extracts the
+  fields for you to review and edit before saving.
+- **Copy-to-clipboard** on every answer, so you can paste them straight into any
+  external application form — the practical "autofill" surface for a web tracker.
+
+**Implementation:**
+- `Profile` Prisma model (single `singleton` row).
+- `GET`/`PUT /api/profile` and `POST /api/profile/parse-resume` (server-side
+  Claude call, `claude-opus-4-8`, structured outputs).
+- `app/components/profile/ProfileForm.tsx` reusing the existing form conventions.
+- Degrades gracefully without `ANTHROPIC_API_KEY` (manual entry still works).
+
+**Future:** wire this profile into the Milestone 2 browser extension for true
+on-page form autofill (filling fields directly on Greenhouse/Lever/Workday).
+
+**Acceptance:** Upload a resume → fields populate → save → answers persist and
+copy to clipboard.
+
+---
+
+## ✅ Milestone 1.6: Import Listing from URL
+
+**Status:** Shipped · May 31, 2026
+**Priority:** High
+
+### One-paste import
+
+Paste a job-posting link and import the listing straight into the tracker.
+
+**What:**
+- An **Import from URL** bar in the Add-job modal: paste a link → the app fetches
+  the page and extracts company, role, location, location type, job type, salary,
+  and a short summary, prefilling the form for review.
+- Saving goes through the existing applications API, so the imported job is
+  auto-verified against the gov.uk sponsor register like any other card.
+
+**Implementation:**
+- Extends `app/api/parse-url/route.ts` with AI extraction (Claude structured
+  outputs) layered over the existing regex `<title>` parser, which remains the
+  fallback. Guarded behind `ANTHROPIC_API_KEY` so the route never hard-fails.
+
+**Acceptance:** Paste a real job URL → fields prefill → save → card appears on the
+board with sponsor verification applied.
+
+---
+
 ## 🔄 Milestone 2: Enhanced Interactivity
 
 **Status:** Planned · Q3 2026  
@@ -398,6 +457,8 @@ AI-powered sponsor matching based on your background.
 | Milestone | Status | Effort | Priority | Impact |
 |-----------|--------|--------|----------|--------|
 | 1. MVP | ✅ Complete | N/A | — | Foundation |
+| 1.5. Application Profile & Resume Autofill | ✅ Complete | N/A | High | Less per-application effort |
+| 1.6. Import Listing from URL | ✅ Complete | N/A | High | Faster capture |
 | 2. Browser Extension | 🔄 Planned | 2-3d | High | Auto-capture |
 | 3. Drag-and-Drop | 🔄 Planned | 1-2d | High | UX improvement |
 | 4. Analytics | 🔄 Planned | 2-3d | Medium | Insights |

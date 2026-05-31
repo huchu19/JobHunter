@@ -1,3 +1,6 @@
+import { ClipboardList, Send, Target, PartyPopper } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
 async function getApplicationStats() {
   try {
     const response = await fetch("http://localhost:3000/api/applications", {
@@ -36,19 +39,20 @@ function calculateStats(applications: any[]) {
 interface StatCard {
   label: string;
   value: string | number;
-  icon: string;
-  color: string;
+  icon: LucideIcon;
 }
 
-function StatCardComponent({ label, value, icon, color }: StatCard) {
+function StatCardComponent({ label, value, icon: Icon }: StatCard) {
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-      <div className="flex items-center justify-between">
+    <div className="card p-5">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-gray-600">{label}</p>
-          <p className={`text-3xl font-bold mt-2 ${color}`}>{value}</p>
+          <p className="text-sm font-medium text-muted">{label}</p>
+          <p className="display mt-2 text-3xl text-foreground">{value}</p>
         </div>
-        <div className="text-4xl">{icon}</div>
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand-strong">
+          <Icon size={20} strokeWidth={2.2} />
+        </span>
       </div>
     </div>
   );
@@ -59,34 +63,14 @@ export default async function StatsBar() {
   const stats = calculateStats(applications);
 
   const cards: StatCard[] = [
-    {
-      label: "Total tracked",
-      value: stats.total,
-      icon: "📋",
-      color: "text-blue-600",
-    },
-    {
-      label: "Applied this week",
-      value: stats.appliedThisWeek,
-      icon: "✉️",
-      color: "text-green-600",
-    },
-    {
-      label: "Interview rate",
-      value: `${stats.interviewRate}%`,
-      icon: "🎯",
-      color: "text-purple-600",
-    },
-    {
-      label: "Offers",
-      value: stats.offered,
-      icon: "🎉",
-      color: "text-orange-600",
-    },
+    { label: "Total tracked", value: stats.total, icon: ClipboardList },
+    { label: "Applied this week", value: stats.appliedThisWeek, icon: Send },
+    { label: "Interview rate", value: `${stats.interviewRate}%`, icon: Target },
+    { label: "Offers", value: stats.offered, icon: PartyPopper },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
       {cards.map((card) => (
         <StatCardComponent key={card.label} {...card} />
       ))}

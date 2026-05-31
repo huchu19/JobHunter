@@ -14,7 +14,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "UK Sponsor Finder",
-  description: "Find UK visa sponsors and track job applications",
+  description:
+    "Find the UK employers who will actually sponsor your Skilled Worker visa — and track every application in one calm dashboard.",
 };
 
 export default function RootLayout({

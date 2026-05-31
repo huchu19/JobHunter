@@ -30,3 +30,43 @@ model Application {
   @@index([status])
   @@index([createdAt])
 }
+
+// Single-row reusable application profile. Holds answers to common job-application
+// questions, mostly auto-extracted from an uploaded resume via the Claude API.
+// Surfaced on /profile with copy-to-clipboard for fast pasting into external forms.
+model Profile {
+  id String @id @default("singleton")
+
+  // Contact
+  fullName     String?
+  email        String?
+  phone        String?
+  location     String?
+  linkedinUrl  String?
+  githubUrl    String?
+  portfolioUrl String?
+  websiteUrl   String?
+
+  // Common application answers
+  workAuthorization String?
+  needsSponsorship  Boolean?
+  rightToWork       String?
+  noticePeriod      String?
+  salaryExpectation String?
+  earliestStart     String?
+  yearsExperience   String?
+  currentTitle      String?
+
+  // Free-text blocks frequently re-pasted into applications
+  summary     String?
+  skills      String?
+  education   String?
+  workHistory String?
+
+  // Resume bookkeeping
+  resumeText     String?
+  resumeFileName String?
+  resumeParsedAt DateTime?
+
+  updatedAt DateTime @updatedAt
+}

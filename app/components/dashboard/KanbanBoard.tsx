@@ -20,6 +20,7 @@ interface Application {
 interface ColumnProps {
   title: string;
   status: string;
+  accent: string;
   cards: Application[];
   onCardMove: (id: string, newStatus: string) => Promise<void>;
   onCardDelete: (id: string) => Promise<void>;
@@ -27,18 +28,26 @@ interface ColumnProps {
 
 function KanbanColumn({
   title,
-  status,
   cards,
+  accent,
   onCardMove,
   onCardDelete,
 }: ColumnProps) {
   return (
-    <div className="flex flex-col bg-gray-100 rounded-lg p-4 min-w-[300px] max-h-[600px] overflow-y-auto">
-      <div className="mb-4">
-        <h3 className="font-semibold text-gray-900">{title}</h3>
-        <p className="text-xs text-gray-500 mt-1">{cards.length} items</p>
+    <div className="flex w-[280px] shrink-0 flex-col rounded-xl border border-white/10 bg-white/[0.04] p-3">
+      <div className="mb-3 flex items-center justify-between px-1">
+        <div className="flex items-center gap-2">
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ backgroundColor: accent }}
+          />
+          <h3 className="text-sm font-semibold text-white">{title}</h3>
+        </div>
+        <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-semibold text-white/80">
+          {cards.length}
+        </span>
       </div>
-      <div className="space-y-3 flex-1">
+      <div className="thin-scroll flex-1 space-y-2.5 overflow-y-auto pr-0.5">
         {cards.map((card) => (
           <KanbanCard
             key={card.id}
@@ -52,7 +61,7 @@ function KanbanColumn({
           />
         ))}
         {cards.length === 0 && (
-          <p className="text-sm text-gray-400 text-center py-8">No items</p>
+          <p className="py-8 text-center text-sm text-white/30">No items</p>
         )}
       </div>
     </div>
@@ -123,33 +132,43 @@ export default function KanbanBoard() {
     }
   };
 
-  if (loading) return <div className="text-center py-12">Loading...</div>;
+  if (loading)
+    return (
+      <div className="rounded-card border border-border bg-surface py-12 text-center text-muted">
+        Loading…
+      </div>
+    );
   if (error)
     return (
-      <div className="text-center py-12 text-red-600">Error: {error}</div>
+      <div className="rounded-card border border-danger/30 bg-danger/5 py-12 text-center font-medium text-danger">
+        Error: {error}
+      </div>
     );
 
   const columns = [
-    { title: "Wishlist", status: "wishlist" },
-    { title: "Applied", status: "applied" },
-    { title: "Interview", status: "interview" },
-    { title: "Offer", status: "offer" },
-    { title: "Rejected", status: "rejected" },
+    { title: "Wishlist", status: "wishlist", accent: "#94a3b8" },
+    { title: "Applied", status: "applied", accent: "#38bdf8" },
+    { title: "Interview", status: "interview", accent: "#2bd4c0" },
+    { title: "Offer", status: "offer", accent: "#34d399" },
+    { title: "Rejected", status: "rejected", accent: "#fb7185" },
   ];
 
   return (
-    <div className="overflow-x-auto">
-      <div className="flex gap-4 pb-4">
-        {columns.map((col) => (
-          <KanbanColumn
-            key={col.status}
-            title={col.title}
-            status={col.status}
-            cards={applications.filter((app) => app.status === col.status)}
-            onCardMove={handleCardMove}
-            onCardDelete={handleCardDelete}
-          />
-        ))}
+    <div className="panel-ink rounded-card p-5 shadow-[0_18px_48px_-12px_rgba(11,31,42,0.22)]">
+      <div className="thin-scroll overflow-x-auto pb-1">
+        <div className="flex gap-4">
+          {columns.map((col) => (
+            <KanbanColumn
+              key={col.status}
+              title={col.title}
+              status={col.status}
+              accent={col.accent}
+              cards={applications.filter((app) => app.status === col.status)}
+              onCardMove={handleCardMove}
+              onCardDelete={handleCardDelete}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
