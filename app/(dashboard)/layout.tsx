@@ -10,7 +10,9 @@ import {
   PanelLeftOpen,
   Radio,
   FileUser,
+  BarChart3,
 } from "lucide-react";
+import ThemeToggle from "@/app/components/ThemeToggle";
 
 interface NavLink {
   href: string;
@@ -20,6 +22,7 @@ interface NavLink {
 
 const navLinks: NavLink[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/sponsors", label: "Find Sponsors", icon: Compass },
   { href: "/profile", label: "Application Profile", icon: FileUser },
 ];
@@ -81,8 +84,9 @@ export default function DashboardLayout({
           })}
         </nav>
 
-        {/* Collapse toggle */}
-        <div className="px-3">
+        {/* Theme + collapse toggles */}
+        <div className="space-y-1 px-3">
+          <ThemeToggle collapsed={!sidebarOpen} />
           <button
             onClick={() => setSidebarOpen((o) => !o)}
             className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted hover:bg-surface-muted hover:text-foreground transition-colors"

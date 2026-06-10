@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { NO_FLASH_SCRIPT } from "./lib/theme";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,8 +27,15 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        {/* Set the theme class before first paint to avoid a flash of the
+            wrong theme. suppressHydrationWarning above covers the resulting
+            server/client class mismatch on <html>. */}
+        <script dangerouslySetInnerHTML={{ __html: NO_FLASH_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

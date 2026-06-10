@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { htmlToText, extractTitle } from "@/app/api/parse-url/route";
+import {
+  htmlToText,
+  extractTitle,
+  normalizeDeadline,
+  workdayApiUrl,
+  titleCase,
+  extractOgDescription,
+  decodeEntities,
+} from "@/app/api/parse-url/route";
 
 describe("parse-url helpers", () => {
   describe("extractTitle", () => {
@@ -48,6 +56,62 @@ describe("parse-url helpers", () => {
     it("bounds output to maxChars", () => {
       const long = "<p>" + "x".repeat(50000) + "</p>";
       expect(htmlToText(long, 100).length).toBe(100);
+    });
+  });
+
+  describe("normalizeDeadline", () => {
+    it("normalizes a valid ISO date to YYYY-MM-DD", () => {
+      expect(normalizeDeadline("2026-07-01")).toBe("2026-07-01");
+      expect(normalizeDeadline("2026-07-01T09:00:00Z")).toBe("2026-07-01");
+    });
+
+    it("returns null for missing or unparseable values", () => {
+      expect(normalizeDeadline(null)).toBeNull();
+      expect(normalizeDeadline(undefined)).toBeNull();
+      expect(normalizeDeadline("")).toBeNull();
+      expect(normalizeDeadline("not a date")).toBeNull();
+      expect(normalizeDeadline(42)).toBeNull();
+    });
+  });
+
+  describe("workdayApiUrl", () => {
+    it("builds the CXS JSON endpoint for a Workday posting", () => {
+      const url =
+        "https://darktrace.wd3.myworkdayjobs.com/en-US/DarktaceExternal/job/Cambridge-Office-United-Kingdom/Machine-Learning-Integration-Engineer_JR101685-1?Country=x";
+      expect(workdayApiUrl(url)).toBe(
+        "https://darktrace.wd3.myworkdayjobs.com/wday/cxs/darktrace/DarktaceExternal/job/Cambridge-Office-United-Kingdom/Machine-Learning-Integration-Engineer_JR101685-1"
+      );
+    });
+
+    it("returns null for non-Workday URLs", () => {
+      expect(workdayApiUrl("https://boards.greenhouse.io/acme/jobs/123")).toBeNull();
+      expect(workdayApiUrl("https://example.com/careers")).toBeNull();
+      expect(workdayApiUrl("not a url")).toBeNull();
+    });
+  });
+
+  describe("titleCase", () => {
+    it("turns a tenant slug into a company name", () => {
+      expect(titleCase("darktrace")).toBe("Darktrace");
+      expect(titleCase("acme-corp")).toBe("Acme Corp");
+      expect(titleCase("wise_eu")).toBe("Wise Eu");
+    });
+  });
+
+  describe("extractOgDescription / decodeEntities", () => {
+    it("extracts and decodes the og:description", () => {
+      const html = `<meta property="og:description" content="R&amp;D team in London &#39;25" />`;
+      expect(extractOgDescription(html)).toBe("R&D team in London '25");
+    });
+
+    it("returns empty string when absent", () => {
+      expect(extractOgDescription("<html></html>")).toBe("");
+    });
+
+    it("decodes common entities", () => {
+      expect(decodeEntities("A &amp; B &lt;x&gt; &quot;y&quot;")).toBe(
+        'A & B <x> "y"'
+      );
     });
   });
 });

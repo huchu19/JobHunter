@@ -1,41 +1,20 @@
 import { NextRequest } from "next/server";
 import prisma from "@/app/lib/db";
-import Fuse from "fuse.js";
+import { fuzzyMatchSponsor } from "@/app/lib/sponsorMatch";
+import { fetchSponsorsFromCache } from "@/app/lib/sponsorCache";
 
-// Cache sponsors in memory with TTL
-let cachedSponsors: { name: string }[] = [];
-let sponsorsCacheTime = 0;
-const SPONSORS_CACHE_TTL = 3600000; // 1 hour
-
-async function fetchSponsorsFromCache() {
-  const now = Date.now();
-  if (cachedSponsors.length > 0 && now - sponsorsCacheTime < SPONSORS_CACHE_TTL) {
-    return cachedSponsors;
-  }
-
-  try {
-    const response = await fetch("http://localhost:3000/api/sponsors", {
-      cache: "no-store",
-    });
-    const data = await response.json();
-    cachedSponsors = (data.sponsors as { name: string }[]) || [];
-    sponsorsCacheTime = now;
-    return cachedSponsors;
-  } catch {
-    return cachedSponsors;
-  }
+/** Parses an incoming ISO date string into a Date, or null when absent/invalid. */
+function parseDate(value: unknown): Date | null {
+  if (!value || typeof value !== "string") return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
-function fuzzyMatchSponsor(companyName: string, sponsors: { name: string }[]) {
-  if (sponsors.length === 0) return false;
-
-  const fuse = new Fuse(sponsors, {
-    keys: ["name"],
-    threshold: 0.3,
-  });
-
-  const results = fuse.search(companyName);
-  return results.length > 0;
+/** Clamps an incoming priority to the 0..5 range. */
+function parsePriority(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(5, Math.round(n)));
 }
 
 export async function GET() {
@@ -67,6 +46,7 @@ export async function POST(request: NextRequest) {
 
     const sponsors = await fetchSponsorsFromCache();
     const sponsorVerified = fuzzyMatchSponsor(body.company, sponsors);
+    const status = body.status || "wishlist";
 
     const application = await prisma.application.create({
       data: {
@@ -76,13 +56,27 @@ export async function POST(request: NextRequest) {
         location: body.location || null,
         locationType: body.locationType || "london",
         jobType: body.jobType || "grad",
-        status: body.status || "wishlist",
+        status,
         notes: body.notes || null,
         salary: body.salary || null,
         source: body.source || "manual",
         sponsorVerified,
+        priority: parsePriority(body.priority),
+        deadline: parseDate(body.deadline),
+        followUpDate: parseDate(body.followUpDate),
+        contactName: body.contactName || null,
+        contactEmail: body.contactEmail || null,
+        jobDescription: body.jobDescription || null,
         appliedAt:
-          body.status === "applied" ? new Date() : body.appliedAt || null,
+          status === "applied" ? new Date() : parseDate(body.appliedAt),
+        // Seed the timeline with a creation event.
+        activities: {
+          create: {
+            type: "created",
+            title: "Application added",
+            toStatus: status,
+          },
+        },
       },
     });
 

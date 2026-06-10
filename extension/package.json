@@ -1,0 +1,17 @@
+{
+  "name": "uk-sponsor-finder-extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Chrome MV3 extension: autofill job applications from your profile and auto-capture them to the UK Sponsor Finder board.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs content",
+    "build:popup": "node build.mjs popup",
+    "build:all": "node build.mjs all"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.268",
+    "esbuild": "^0.20.2",
+    "typescript": "^5"
+  }
+}

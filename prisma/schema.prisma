@@ -24,11 +24,55 @@ model Application {
   salary          String?
   source          String?
   sponsorVerified Boolean  @default(false)
+
+  // Prioritisation
+  priority        Int       @default(0) // 0 = unset, 1..5 interest rating
+
+  // Key dates
+  deadline        DateTime? // application close date
+  followUpDate    DateTime? // next nudge/chase date
+
+  // Per-stage timestamps (auto-set on status transition)
+  interviewAt     DateTime?
+  offerAt         DateTime?
+  rejectedAt      DateTime?
+
+  // Decision / outcome
+  rejectedReason  String? // e.g. "ghosted" | "position-filled" | "after-interview" | free text
+
+  // Contact
+  contactName     String?
+  contactEmail    String?
+
+  // Richer detail
+  jobDescription  String? // the pasted job description
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  activities      Activity[]
+
   @@index([status])
   @@index([createdAt])
+}
+
+// Timeline of events for an application: auto-logged status changes plus
+// user-added interview rounds, notes, and follow-ups. Powers the detail-view
+// activity timeline. Needs N rows per application, hence a related model.
+model Activity {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  type          String // "created" | "status_change" | "interview" | "note" | "follow_up"
+  fromStatus    String?
+  toStatus      String?
+  title         String? // e.g. "Phone screen", "Technical round 2"
+  notes         String?
+  occurredAt    DateTime    @default(now()) // user-settable for scheduled interviews
+  createdAt     DateTime    @default(now())
+
+  @@index([applicationId])
+  @@index([occurredAt])
 }
 
 // Single-row reusable application profile. Holds answers to common job-application

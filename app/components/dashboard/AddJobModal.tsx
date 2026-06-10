@@ -7,10 +7,9 @@ import type {
   JobType,
   LocationType,
 } from "@/app/types/application";
-
-const fieldClass =
-  "w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/25";
-const labelClass = "mb-1 block text-sm font-medium text-foreground";
+import { STATUSES, STATUS_META } from "@/app/lib/applicationStatus";
+import { fieldClass, labelClass } from "./formClasses";
+import PriorityStars from "./PriorityStars";
 
 interface AddJobModalProps {
   isOpen: boolean;
@@ -36,13 +35,6 @@ const LOCATION_TYPES: LocationType[] = [
   "relocation",
 ];
 const JOB_TYPES: JobType[] = ["grad", "intern", "contract"];
-const STATUSES: ApplicationStatus[] = [
-  "wishlist",
-  "applied",
-  "interview",
-  "offer",
-  "rejected",
-];
 
 export default function AddJobModal({
   isOpen,
@@ -69,6 +61,12 @@ export default function AddJobModal({
   const [status, setStatus] = useState<ApplicationStatus>("wishlist");
   const [salary, setSalary] = useState(initialSalary);
   const [notes, setNotes] = useState(initialNotes);
+  const [priority, setPriority] = useState(0);
+  const [deadline, setDeadline] = useState("");
+  const [followUpDate, setFollowUpDate] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [jobDescription, setJobDescription] = useState("");
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -90,6 +88,12 @@ export default function AddJobModal({
       setStatus("wishlist");
       setSalary(initialSalary);
       setNotes(initialNotes);
+      setPriority(0);
+      setDeadline("");
+      setFollowUpDate("");
+      setContactName("");
+      setContactEmail("");
+      setJobDescription("");
       setError(null);
       setSubmitting(false);
       setImportUrl("");
@@ -129,6 +133,10 @@ export default function AddJobModal({
       if (data.jobType) setJobType(data.jobType);
       if (data.salary) setSalary(data.salary);
       if (data.notes) setNotes(data.notes);
+      if (data.deadline) setDeadline(data.deadline);
+      if (data.jobDescription) setJobDescription(data.jobDescription);
+      if (data.contactName) setContactName(data.contactName);
+      if (data.contactEmail) setContactEmail(data.contactEmail);
 
       if (data.company || data.role) {
         setImportNote("Imported — review the fields below and save.");
@@ -170,6 +178,14 @@ export default function AddJobModal({
           status,
           salary: salary.trim() || null,
           notes: notes.trim() || null,
+          priority,
+          deadline: deadline ? new Date(deadline).toISOString() : null,
+          followUpDate: followUpDate
+            ? new Date(followUpDate).toISOString()
+            : null,
+          contactName: contactName.trim() || null,
+          contactEmail: contactEmail.trim() || null,
+          jobDescription: jobDescription.trim() || null,
           source: "manual",
         }),
       });
@@ -357,35 +373,94 @@ export default function AddJobModal({
                 className={`${fieldClass} capitalize`}
               >
                 {STATUSES.map((s) => (
-                  <option key={s} value={s} className="capitalize">
-                    {s}
+                  <option key={s} value={s}>
+                    {STATUS_META[s].label}
                   </option>
                 ))}
               </select>
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Salary</label>
+              <input
+                type="text"
+                value={salary}
+                onChange={(e) => setSalary(e.target.value)}
+                placeholder="e.g. £60-80k"
+                className={fieldClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Priority</label>
+              <div className="py-1.5">
+                <PriorityStars value={priority} onChange={setPriority} />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Deadline</label>
+              <input
+                type="date"
+                value={deadline}
+                onChange={(e) => setDeadline(e.target.value)}
+                className={fieldClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Follow-up date</label>
+              <input
+                type="date"
+                value={followUpDate}
+                onChange={(e) => setFollowUpDate(e.target.value)}
+                className={fieldClass}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Contact name</label>
+              <input
+                type="text"
+                value={contactName}
+                onChange={(e) => setContactName(e.target.value)}
+                placeholder="Recruiter / hiring manager"
+                className={fieldClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Contact email</label>
+              <input
+                type="email"
+                value={contactEmail}
+                onChange={(e) => setContactEmail(e.target.value)}
+                placeholder="name@company.com"
+                className={fieldClass}
+              />
+            </div>
+          </div>
+
           <div>
-            <label className={labelClass}>
-              Salary
-            </label>
-            <input
-              type="text"
-              value={salary}
-              onChange={(e) => setSalary(e.target.value)}
-              placeholder="e.g. £60-80k"
+            <label className={labelClass}>Notes</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
               className={fieldClass}
             />
           </div>
 
           <div>
-            <label className={labelClass}>
-              Notes
-            </label>
+            <label className={labelClass}>Job description</label>
             <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
+              value={jobDescription}
+              onChange={(e) => setJobDescription(e.target.value)}
+              rows={4}
+              placeholder="Paste the full job description for reference…"
               className={fieldClass}
             />
           </div>

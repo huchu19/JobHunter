@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>UK Sponsor Finder</title>
+  </head>
+  <body>
+    <header>
+      <div class="logo">✓</div>
+      <h1>UK Sponsor Finder</h1>
+    </header>
+
+    <section class="settings">
+      <label class="field">
+        <span>Dashboard URL</span>
+        <input id="dashboardUrl" type="text" placeholder="http://localhost:3000" />
+      </label>
+
+      <label class="toggle">
+        <input id="enabled" type="checkbox" />
+        <span>Extension enabled</span>
+      </label>
+      <label class="toggle">
+        <input id="autofillEnabled" type="checkbox" />
+        <span>Show autofill button</span>
+      </label>
+      <label class="toggle">
+        <input id="captureEnabled" type="checkbox" />
+        <span>Auto-capture applications</span>
+      </label>
+
+      <button id="save" class="primary">Save settings</button>
+      <p id="status" class="status"></p>
+    </section>
+
+    <section class="recent">
+      <h2>Recent captures</h2>
+      <ul id="captures" class="captures">
+        <li class="empty">No captures yet.</li>
+      </ul>
+    </section>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

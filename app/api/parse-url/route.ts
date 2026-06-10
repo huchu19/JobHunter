@@ -10,6 +10,10 @@ interface ParseResult {
   jobType?: string | null;
   salary?: string | null;
   notes?: string | null;
+  deadline?: string | null;
+  jobDescription?: string | null;
+  contactName?: string | null;
+  contactEmail?: string | null;
   url?: string | null;
 }
 
@@ -43,13 +47,117 @@ function parseCompanyAndRole(title: string): {
   return { company: null, role: null };
 }
 
+// Validate a model-supplied deadline into a clean "YYYY-MM-DD" string, or null.
+export function normalizeDeadline(value: unknown): string | null {
+  if (!value || typeof value !== "string") return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
+// Turn a tenant slug like "darktrace" or "acme-corp" into "Darktrace" /
+// "Acme Corp" for a best-effort company name.
+export function titleCase(slug: string): string {
+  return slug
+    .replace(/[-_]+/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+// Decode the handful of HTML entities that show up in meta-tag content.
+export function decodeEntities(text: string): string {
+  return text
+    .replace(/&amp;/gi, "&")
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&#x2F;/gi, "/");
+}
+
 // Extract the page <title> (or og:title) from raw HTML.
 export function extractTitle(html: string): string {
   const ogTitleMatch = html.match(
     /<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i
   );
   const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-  return ogTitleMatch?.[1] || titleMatch?.[1] || "";
+  return decodeEntities(ogTitleMatch?.[1] || titleMatch?.[1] || "");
+}
+
+// Pull the og:description meta content (often the only readable text on a
+// JS-rendered job page, e.g. Workday/Greenhouse/Lever shells).
+export function extractOgDescription(html: string): string {
+  const m = html.match(
+    /<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']*)["']/i
+  );
+  return m ? decodeEntities(m[1]) : "";
+}
+
+// Build the Workday CXS JSON endpoint for a job-posting page URL, or null when
+// the URL isn't a Workday posting. Workday renders jobs client-side, so the
+// plain HTML is an empty shell — but this REST endpoint returns clean,
+// structured job data. Transform:
+//   https://{tenant}.{dc}.myworkdayjobs.com/{locale}/{site}/job/{path}
+//   → https://{tenant}.{dc}.myworkdayjobs.com/wday/cxs/{tenant}/{site}/job/{path}
+export function workdayApiUrl(rawUrl: string): string | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    return null;
+  }
+  if (!/\.myworkdayjobs\.com$/i.test(parsed.hostname)) return null;
+
+  const tenant = parsed.hostname.split(".")[0];
+  // Path segments after the leading locale, e.g. ["en-US","Site","job","a","b"].
+  const segments = parsed.pathname.split("/").filter(Boolean);
+  const jobIdx = segments.indexOf("job");
+  if (jobIdx < 1 || tenant === "www") return null;
+
+  const site = segments[jobIdx - 1];
+  const jobPath = segments.slice(jobIdx).join("/"); // "job/.../..."
+  return `https://${parsed.hostname}/wday/cxs/${tenant}/${site}/${jobPath}`;
+}
+
+interface WorkdayExtract {
+  role: string | null;
+  location: string | null;
+  jobDescription: string | null;
+  deadline: string | null;
+}
+
+// Fetch and shape a Workday posting from its CXS JSON endpoint.
+async function fetchWorkday(apiUrl: string): Promise<WorkdayExtract | null> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(apiUrl, {
+      signal: controller.signal,
+      headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0" },
+    });
+    clearTimeout(timeoutId);
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    const info = data?.jobPostingInfo;
+    if (!info) return null;
+
+    const description = info.jobDescription
+      ? htmlToText(String(info.jobDescription))
+      : null;
+
+    return {
+      role: info.title ?? null,
+      location: info.location ?? null,
+      jobDescription: description,
+      deadline: normalizeDeadline(info.endDate),
+    };
+  } catch {
+    return null;
+  }
 }
 
 // Strip scripts/styles/tags and collapse whitespace to a plain-text approximation
@@ -83,6 +191,10 @@ const LISTING_SCHEMA = {
     jobType: { type: "string", enum: ["grad", "intern", "contract"] },
     salary: { type: "string" },
     notes: { type: "string" },
+    deadline: { type: "string" },
+    jobDescription: { type: "string" },
+    contactName: { type: "string" },
+    contactEmail: { type: "string" },
   },
   additionalProperties: false,
 } as const;
@@ -93,7 +205,10 @@ Return only the fields you can confidently determine — omit anything not prese
 - "locationType": "remote", "hybrid", "relocation", or "london" (use "london" for any London-based office role).
 - "jobType": "grad" (graduate/entry/full-time), "intern" (internship/placement), or "contract".
 - "salary": the advertised compensation if any, e.g. "£60,000–£80,000".
-- "notes": a 1–2 sentence summary of the role's key responsibilities or requirements.`;
+- "notes": a 1–2 sentence summary of the role's key responsibilities or requirements.
+- "deadline": the application closing date if stated, as an ISO date "YYYY-MM-DD". Omit if no closing date is given.
+- "jobDescription": the full job-description text (responsibilities, requirements, about-the-role), cleaned of navigation/boilerplate. Omit if the page has no real description.
+- "contactName" / "contactEmail": the named recruiter or hiring contact and their email, only if explicitly listed on the page.`;
 
 async function aiExtract(
   pageText: string,
@@ -105,7 +220,7 @@ async function aiExtract(
   try {
     const response = await anthropic.messages.create({
       model: ANTHROPIC_MODEL,
-      max_tokens: 1500,
+      max_tokens: 4000,
       thinking: { type: "adaptive" },
       system: SYSTEM_PROMPT,
       output_config: { format: { type: "json_schema", schema: LISTING_SCHEMA } },
@@ -149,20 +264,59 @@ export async function GET(request: NextRequest) {
       const html = await response.text();
       const title = extractTitle(html);
       const { company, role } = parseCompanyAndRole(title);
+      const ogDescription = extractOgDescription(html);
+      const bodyText = htmlToText(html);
 
-      // Regex result is the always-available fallback.
-      const result: ParseResult = { company, role, title, url };
+      // Workday (and similar) render the job client-side, so the body is empty.
+      // Fall back to the og:description meta — usually the full posting text —
+      // as the material both the user and the AI can work from.
+      const pageText = bodyText.length > 200 ? bodyText : ogDescription;
 
-      // Enrich with AI when a key is configured; merge over the regex result.
-      const ai = await aiExtract(htmlToText(html), url);
+      // Regex result is the always-available fallback. Even without an API key
+      // we hand back the og:title-derived role and a trimmed description so the
+      // import fills more than the title alone. AI (below) refines this.
+      const result: ParseResult = {
+        company,
+        // og:title on Workday/Greenhouse shells is usually just the role.
+        role: role ?? (title || null),
+        title,
+        url,
+        jobDescription: pageText ? pageText.slice(0, 4000) : null,
+      };
+
+      // Site-specific structured extraction (deterministic, no AI needed).
+      const wdApi = workdayApiUrl(url);
+      if (wdApi) {
+        const wd = await fetchWorkday(wdApi);
+        if (wd) {
+          result.role = wd.role || result.role;
+          result.location = wd.location ?? result.location ?? null;
+          result.jobDescription = wd.jobDescription || result.jobDescription;
+          result.deadline = wd.deadline ?? result.deadline ?? null;
+          // Derive a company from the tenant when the title didn't yield one.
+          if (!result.company) {
+            const tenant = new URL(url).hostname.split(".")[0];
+            result.company = titleCase(tenant);
+          }
+        }
+      }
+
+      // Enrich with AI when a key is configured; merge over the result. AI
+      // fields override when present, but never clobber a value an earlier
+      // step (regex / Workday) already resolved.
+      const ai = await aiExtract(pageText, url);
       if (ai) {
         result.company = ai.company || result.company;
         result.role = ai.role || result.role;
-        result.location = ai.location ?? null;
-        result.locationType = ai.locationType ?? null;
-        result.jobType = ai.jobType ?? null;
-        result.salary = ai.salary ?? null;
-        result.notes = ai.notes ?? null;
+        result.location = ai.location || result.location || null;
+        result.locationType = ai.locationType ?? result.locationType ?? null;
+        result.jobType = ai.jobType ?? result.jobType ?? null;
+        result.salary = ai.salary ?? result.salary ?? null;
+        result.notes = ai.notes ?? result.notes ?? null;
+        result.deadline = normalizeDeadline(ai.deadline) ?? result.deadline ?? null;
+        result.jobDescription = ai.jobDescription || result.jobDescription;
+        result.contactName = ai.contactName ?? result.contactName ?? null;
+        result.contactEmail = ai.contactEmail ?? result.contactEmail ?? null;
       }
 
       return Response.json(result, { status: 200 });

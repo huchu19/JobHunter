@@ -1,0 +1,57 @@
+{
+  "manifest_version": 3,
+  "name": "UK Sponsor Finder — Autofill & Capture",
+  "version": "0.1.0",
+  "description": "Autofill job applications from your saved profile and auto-capture them to your UK Sponsor Finder board.",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": [
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "UK Sponsor Finder",
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.greenhouse.io/*",
+        "*://*.lever.co/*",
+        "*://*.linkedin.com/*",
+        "*://*.myworkdayjobs.com/*",
+        "*://*.workday.com/*",
+        "*://*.workable.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "exclude_matches": [
+        "*://*.greenhouse.io/*",
+        "*://*.lever.co/*",
+        "*://*.linkedin.com/*",
+        "*://*.myworkdayjobs.com/*",
+        "*://*.workday.com/*",
+        "*://*.workable.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

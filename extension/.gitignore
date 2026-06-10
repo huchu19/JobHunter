@@ -1,0 +1,3 @@
+# Extension dependencies and build output — regenerable via `npm run build:ext`.
+node_modules/
+dist/

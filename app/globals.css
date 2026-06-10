@@ -2,8 +2,15 @@
 
 /*
  * UK Sponsor Finder — design system
- * Modern SaaS (light), teal/cyan accent on cool slate neutrals.
+ * Modern SaaS, teal/cyan accent on cool slate neutrals.
+ * Light is the base; the .dark block below overrides the same tokens so the
+ * entire token-driven UI flips with no per-component changes. The theme class
+ * is set on <html> before paint by the inline script in app/layout.tsx.
  */
+
+/* Drive Tailwind's `dark:` variant off a manual class instead of the OS query,
+ * so it stays in lockstep with our explicit Light/Dark/System toggle. */
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   /* Surfaces */
@@ -39,6 +46,44 @@
   --shadow-lg: 0 18px 48px -12px rgba(11, 31, 42, 0.22);
 }
 
+/*
+ * Dark theme — same token names, deep cool-slate surfaces. Applied when <html>
+ * carries the `dark` class (set by the toggle / system preference). The kanban
+ * `.panel-ink` already renders dark, so it needs no overrides here.
+ */
+.dark {
+  /* Surfaces */
+  --background: #07151c;
+  --surface: #0d2531;
+  --surface-muted: #122e3b;
+
+  /* Text */
+  --foreground: #e7f1f4;
+  --muted: #9fb4bd;
+  --muted-2: #6d8893;
+
+  /* Brand — slightly lifted so it reads on dark surfaces */
+  --brand: #1ec8ba;
+  --brand-strong: #15b0a3;
+  --brand-soft: #103e3c;
+  --brand-contrast: #04161b;
+
+  /* Dark hero / panels — keep the deep ink, nudge for contrast on dark bg */
+  --ink: #04141c;
+  --ink-2: #0a2330;
+
+  /* Lines & states */
+  --border: #1d3a47;
+  --ring: #1ec8ba;
+  --success: #2bbd86;
+  --warning: #e0a23a;
+  --danger: #f06a5d;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 18px 48px -12px rgba(0, 0, 0, 0.65);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
@@ -65,9 +110,12 @@
   --radius-card: var(--radius);
 }
 
-/* Lock to the light Modern-SaaS palette regardless of OS preference. */
+/* Match native controls (form widgets, scrollbars) to the active theme. */
 html {
   color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
 }
 
 * {

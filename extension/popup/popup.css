@@ -1,0 +1,151 @@
+:root {
+  --brand: #4f46e5;
+  --ink: #1e1b4b;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --ok: #065f46;
+  --bad: #b91c1c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  width: 320px;
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: var(--ink);
+  background: #fff;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--brand);
+  color: #fff;
+}
+
+.logo {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.2);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+}
+
+header h1 {
+  font-size: 15px;
+  margin: 0;
+}
+
+section {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.field {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.field span {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.field input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.primary {
+  width: 100%;
+  margin-top: 6px;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 8px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary:hover {
+  filter: brightness(1.05);
+}
+
+.status {
+  font-size: 12px;
+  margin: 8px 0 0;
+  min-height: 16px;
+}
+
+.status.ok {
+  color: var(--ok);
+}
+.status.bad {
+  color: var(--bad);
+}
+
+.recent h2 {
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+
+.captures {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.captures li {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+
+.captures li:last-child {
+  border-bottom: none;
+}
+
+.captures .empty {
+  color: var(--muted);
+}
+
+.cap-title {
+  font-weight: 600;
+}
+
+.cap-meta {
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+
+.cap-bad {
+  color: var(--bad);
+}

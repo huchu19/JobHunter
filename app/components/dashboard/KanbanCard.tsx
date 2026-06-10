@@ -1,26 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, BadgeCheck, Calendar, ExternalLink } from "lucide-react";
-
-interface Application {
-  id: string;
-  company: string;
-  role: string;
-  status: string;
-  location: string | null;
-  locationType: string;
-  jobType: string;
-  sponsorVerified: boolean;
-  appliedAt: string | null;
-  notes: string | null;
-  url: string | null;
-}
+import {
+  MoreHorizontal,
+  BadgeCheck,
+  Calendar,
+  CalendarClock,
+  Bell,
+  ExternalLink,
+  Star,
+} from "lucide-react";
+import type { ApplicationDTO } from "@/app/types/application";
+import { STATUSES, STATUS_META } from "@/app/lib/applicationStatus";
 
 interface KanbanCardProps {
-  card: Application;
+  card: ApplicationDTO;
   onMove: (newStatus: string) => Promise<void>;
   onDelete: () => Promise<void>;
+  onOpen: () => void;
+  /** Visual-only variant for the drag overlay (no menu/handlers). */
+  overlay?: boolean;
 }
 
 const locationColors: Record<string, string> = {
@@ -39,25 +38,46 @@ const jobTypeColors: Record<string, string> = {
 const badgeBase =
   "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ring-1 ring-inset";
 
-export default function KanbanCard({ card, onMove, onDelete }: KanbanCardProps) {
+function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-GB", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function isOverdue(iso: string): boolean {
+  return new Date(iso).getTime() < Date.now();
+}
+
+export default function KanbanCard({
+  card,
+  onMove,
+  onDelete,
+  onOpen,
+  overlay = false,
+}: KanbanCardProps) {
   const [showMenu, setShowMenu] = useState(false);
-  const [expanded, setExpanded] = useState(false);
 
   const handleMove = async (newStatus: string) => {
     await onMove(newStatus);
     setShowMenu(false);
   };
 
-  const statusOptions = ["wishlist", "applied", "interview", "offer", "rejected"];
-
   return (
-    <div className="rounded-xl border border-border bg-surface p-3.5 shadow-sm transition-shadow hover:shadow-md">
+    <div
+      onClick={overlay ? undefined : onOpen}
+      className={`rounded-xl border border-border bg-surface p-3.5 shadow-sm transition-shadow hover:shadow-md ${
+        overlay ? "rotate-2 cursor-grabbing shadow-lg" : "cursor-pointer"
+      }`}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <h4 className="line-clamp-2 text-sm font-semibold text-foreground">
             {card.company}
           </h4>
-          <p className="mt-0.5 line-clamp-1 text-[13px] text-muted">{card.role}</p>
+          <p className="mt-0.5 line-clamp-1 text-[13px] text-muted">
+            {card.role}
+          </p>
           {card.url && (
             <a
               href={card.url}
@@ -71,47 +91,73 @@ export default function KanbanCard({ card, onMove, onDelete }: KanbanCardProps) 
           )}
         </div>
 
-        <div className="relative">
-          <button
-            onClick={() => setShowMenu(!showMenu)}
-            aria-label="Card actions"
-            className="rounded-md p-1 text-muted-2 hover:bg-surface-muted hover:text-foreground"
-          >
-            <MoreHorizontal size={16} />
-          </button>
+        {!overlay && (
+          <div className="relative">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowMenu(!showMenu);
+              }}
+              aria-label="Card actions"
+              className="rounded-md p-1 text-muted-2 hover:bg-surface-muted hover:text-foreground"
+            >
+              <MoreHorizontal size={16} />
+            </button>
 
-          {showMenu && (
-            <div className="absolute right-0 z-50 mt-1 w-44 overflow-hidden rounded-xl border border-border bg-surface py-1 shadow-lg">
-              <button
-                onClick={() => setExpanded(!expanded)}
-                className="block w-full px-3 py-2 text-left text-[13px] text-foreground hover:bg-surface-muted"
+            {showMenu && (
+              <div
+                className="absolute right-0 z-50 mt-1 w-44 overflow-hidden rounded-xl border border-border bg-surface py-1 shadow-lg"
+                onClick={(e) => e.stopPropagation()}
               >
-                {expanded ? "Hide" : "Show"} notes
-              </button>
-              <div className="my-1 border-t border-border" />
-              {statusOptions.map((status) => (
                 <button
-                  key={status}
-                  onClick={() => handleMove(status)}
-                  className="block w-full px-3 py-2 text-left text-[13px] capitalize text-muted hover:bg-surface-muted hover:text-foreground"
+                  onClick={() => {
+                    onOpen();
+                    setShowMenu(false);
+                  }}
+                  className="block w-full px-3 py-2 text-left text-[13px] text-foreground hover:bg-surface-muted"
                 >
-                  Move to {status}
+                  Open details
                 </button>
-              ))}
-              <div className="my-1 border-t border-border" />
-              <button
-                onClick={async () => {
-                  await onDelete();
-                  setShowMenu(false);
-                }}
-                className="block w-full px-3 py-2 text-left text-[13px] font-medium text-danger hover:bg-danger/5"
-              >
-                Delete
-              </button>
-            </div>
-          )}
-        </div>
+                <div className="my-1 border-t border-border" />
+                {STATUSES.filter((s) => s !== card.status).map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => handleMove(status)}
+                    className="block w-full px-3 py-2 text-left text-[13px] text-muted hover:bg-surface-muted hover:text-foreground"
+                  >
+                    Move to {STATUS_META[status].label}
+                  </button>
+                ))}
+                <div className="my-1 border-t border-border" />
+                <button
+                  onClick={async () => {
+                    await onDelete();
+                    setShowMenu(false);
+                  }}
+                  className="block w-full px-3 py-2 text-left text-[13px] font-medium text-danger hover:bg-danger/5"
+                >
+                  Delete
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Priority */}
+      {card.priority > 0 && (
+        <div className="mt-2 flex items-center gap-0.5">
+          {Array.from({ length: card.priority }).map((_, i) => (
+            <Star
+              key={i}
+              size={12}
+              className="text-amber-400"
+              fill="currentColor"
+              strokeWidth={2}
+            />
+          ))}
+        </div>
+      )}
 
       {(card.locationType || card.jobType || card.sponsorVerified) && (
         <div className="mt-2.5 flex flex-wrap gap-1.5">
@@ -145,22 +191,34 @@ export default function KanbanCard({ card, onMove, onDelete }: KanbanCardProps) 
         </div>
       )}
 
-      {card.appliedAt && (
-        <p className="mt-2.5 flex items-center gap-1 text-[11px] text-muted-2">
-          <Calendar size={11} />
-          Applied{" "}
-          {new Date(card.appliedAt).toLocaleDateString("en-GB", {
-            month: "short",
-            day: "numeric",
-          })}
-        </p>
-      )}
-
-      {expanded && card.notes && (
-        <p className="mt-2.5 border-t border-border pt-2.5 text-[13px] text-muted">
-          {card.notes}
-        </p>
-      )}
+      {/* Date pills */}
+      <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+        {card.appliedAt && (
+          <span className="flex items-center gap-1 text-[11px] text-muted-2">
+            <Calendar size={11} /> Applied {shortDate(card.appliedAt)}
+          </span>
+        )}
+        {card.deadline && (
+          <span
+            className={`flex items-center gap-1 text-[11px] font-medium ${
+              isOverdue(card.deadline) ? "text-danger" : "text-muted-2"
+            }`}
+          >
+            <CalendarClock size={11} /> Due {shortDate(card.deadline)}
+          </span>
+        )}
+        {card.followUpDate && (
+          <span
+            className={`flex items-center gap-1 text-[11px] font-medium ${
+              isOverdue(card.followUpDate)
+                ? "text-warning"
+                : "text-muted-2"
+            }`}
+          >
+            <Bell size={11} /> Follow up {shortDate(card.followUpDate)}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
