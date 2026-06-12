@@ -7,6 +7,9 @@ import { STATUS_META } from "@/app/lib/applicationStatus";
 interface ApplicationListProps {
   applications: ApplicationDTO[];
   onOpen: (id: string) => void;
+  selectMode?: boolean;
+  selectedIds?: Set<string>;
+  onSelect?: (id: string) => void;
 }
 
 function shortDate(iso: string | null): string {
@@ -38,6 +41,9 @@ function StatusPill({ status }: { status: string }) {
 export default function ApplicationList({
   applications,
   onOpen,
+  selectMode,
+  selectedIds,
+  onSelect,
 }: ApplicationListProps) {
   if (applications.length === 0) {
     return (
@@ -53,6 +59,7 @@ export default function ApplicationList({
         <table className="w-full min-w-[820px] text-left text-sm">
           <thead>
             <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted-2">
+              {selectMode && <th className="w-10 px-4 py-3" />}
               <th className="px-4 py-3">Company</th>
               <th className="px-4 py-3">Role</th>
               <th className="px-4 py-3">Stage</th>
@@ -71,12 +78,26 @@ export default function ApplicationList({
                 new Date(app.deadline).getTime() < Date.now() &&
                 app.status !== "offer" &&
                 app.status !== "rejected";
+              const isSelected = selectedIds?.has(app.id);
               return (
                 <tr
                   key={app.id}
-                  onClick={() => onOpen(app.id)}
-                  className="cursor-pointer border-b border-border last:border-0 transition hover:bg-surface-muted"
+                  onClick={() => selectMode ? onSelect?.(app.id) : onOpen(app.id)}
+                  className={`cursor-pointer border-b border-border last:border-0 transition ${
+                    isSelected ? "bg-brand-soft" : "hover:bg-surface-muted"
+                  }`}
                 >
+                  {selectMode && (
+                    <td className="px-4 py-3">
+                      <div
+                        className={`flex h-4 w-4 items-center justify-center rounded border-2 transition ${
+                          isSelected ? "border-brand bg-brand text-white" : "border-border"
+                        }`}
+                      >
+                        {isSelected && <span className="text-[9px] font-bold leading-none">✓</span>}
+                      </div>
+                    </td>
+                  )}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5 font-medium text-foreground">
                       {app.company}

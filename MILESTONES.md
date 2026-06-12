@@ -26,6 +26,7 @@ of Done" in [AGENTS.md](AGENTS.md).
 | 3.5 | Full Application Tracking & Detail View | ✅ Complete | High | — |
 | 3.6 | Dark Mode (System-default toggle) | ✅ Complete | Medium | — |
 | 4 | Analytics & Insights | ✅ Complete | Medium | — |
+| 4.5 | Flow Acceleration (bulk import, bulk status, extension save) | ✅ Complete | High | — |
 | 5 | Company Research & Ratings | 🔄 Planned | Medium | 2–3d |
 | 6 | Smart Notifications | 🔄 Planned | Low | 1–2d |
 | 7 | Mobile App | 🔄 Planned | Low | 4–5d |
@@ -33,7 +34,7 @@ of Done" in [AGENTS.md](AGENTS.md).
 | 9 | Visa Sponsorship Guide | 🔄 Planned | Low | 1d |
 | 10 | Advanced Search & Matching | 🔄 Planned | Low | 2–3d |
 
-**Done:** 8 / 14  ·  **Next up:** Milestone 8 (User Accounts & Sync)
+**Done:** 9 / 15  ·  **Next up:** Milestone 8 (User Accounts & Sync)
 **Recommended order:** 8 → 5 → 6 → 9 → 10 → 7
 
 > Per-milestone **Definition of Done** (repeated as a checklist in each section):
@@ -399,6 +400,46 @@ and stage timings. ✅
 - [x] Meets Acceptance  - [x] `npm test` green (126)  - [x] `npm run build` clean / 0 TS errors
 - [x] No new dependency; no AI added (works without `ANTHROPIC_API_KEY`)
 - [x] Schema unchanged (M3.5 timestamps reused)  - [x] Dashboard + summary table updated
+
+---
+
+## ✅ Milestone 4.5: Flow Acceleration
+
+**Status:** ✅ Complete · Shipped Jun 11, 2026 · Priority: High
+
+Three features that remove the biggest friction points in the job-hunting flow:
+browse sponsors → find job postings → bulk-save them → batch-move to Applied.
+
+### What
+- **Bulk URL import** — "Bulk import" button on the dashboard opens a modal where
+  you paste any number of job URLs (one per line). All are parsed in parallel via
+  `/api/parse-url`, results shown in an editable preview table (company, role,
+  location, salary all editable inline), then saved to Wishlist in one click.
+  Failed or incomplete rows can be fixed before saving.
+- **Bulk status update** — "Select" toggle on the dashboard enters select mode.
+  Clicking a card (board) or row (list) selects it (highlighted). A sticky bar
+  shows how many are selected and lets you move all of them to any stage
+  (Wishlist / Applied / Shortlisted / Interview / Offer / Rejected) in one click.
+  Drag-and-drop is disabled in select mode so clicks don't accidentally drag.
+- **Extension: Save Job on any page** — the "＋ Save job" button previously only
+  appeared on known ATS boards or `/jobs/`-like URLs. Now it appears on every
+  page when capture is enabled — so you can save from any company careers page,
+  not just Greenhouse/Lever/LinkedIn. Autofill is still gated to application-form
+  URLs to avoid noise.
+
+### Tasks
+- [x] `BulkImportModal` component — textarea → parallel parse → editable preview → bulk POST
+- [x] "Bulk import" button in `DashboardClient` toolbar
+- [x] Select mode toggle + `selectedIds` state in `DashboardClient`
+- [x] Checkbox rendering on `KanbanCard` + `ApplicationList` rows in select mode
+- [x] Bulk action bar with per-stage move buttons
+- [x] Props threaded through `KanbanBoard` → `KanbanColumn` → `SortableKanbanCard` → `KanbanCard`
+- [x] Drag listeners suppressed in select mode (no accidental drags)
+- [x] Extension `content.ts`: mount Save Job badge on generic sites regardless of URL path
+
+### Definition of Done
+- [x] Meets Acceptance  - [x] `npm test` green (122)  - [x] `npm run build` + `npm run build:ext` clean / 0 TS errors
+- [x] No new AI dependency  - [x] Dashboard + summary table updated
 
 ---
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, RefreshCw } from "lucide-react";
+import { Plus, RefreshCw, Layers, CheckSquare, X, Loader2 } from "lucide-react";
 import type { ApplicationDTO } from "@/app/types/application";
 import {
   filterApplications,
@@ -15,6 +15,7 @@ import ApplicationList from "./ApplicationList";
 import DashboardFilters, { type ViewMode } from "./DashboardFilters";
 import ApplicationDetail from "./ApplicationDetail";
 import AddJobModal from "./AddJobModal";
+import BulkImportModal from "./BulkImportModal";
 
 export default function DashboardClient() {
   const router = useRouter();
@@ -28,7 +29,12 @@ export default function DashboardClient() {
   const [view, setView] = useState<ViewMode>("board");
 
   const [addOpen, setAddOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
+
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkUpdating, setBulkUpdating] = useState(false);
 
   const loadApplications = async () => {
     try {
@@ -109,6 +115,38 @@ export default function DashboardClient() {
     refreshStats();
   };
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkStatus = async (newStatus: string) => {
+    if (selectedIds.size === 0) return;
+    setBulkUpdating(true);
+    const ids = Array.from(selectedIds);
+    await Promise.all(
+      ids.map((id) =>
+        fetch(`/api/applications/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: newStatus }),
+        })
+      )
+    );
+    await loadApplications();
+    refreshStats();
+    setBulkUpdating(false);
+    exitSelectMode();
+  };
+
   const visible = useMemo(
     () => sortApplications(filterApplications(applications, filters), sortKey),
     [applications, filters, sortKey]
@@ -127,13 +165,33 @@ export default function DashboardClient() {
           onViewChange={setView}
           resultCount={visible.length}
         />
-        <button
-          type="button"
-          onClick={() => setAddOpen(true)}
-          className="btn-brand inline-flex shrink-0 items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
-        >
-          <Plus size={16} strokeWidth={2.4} /> Add job
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setBulkOpen(true)}
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-surface-muted"
+          >
+            <Layers size={15} strokeWidth={2.2} /> Bulk import
+          </button>
+          <button
+            type="button"
+            onClick={() => { setSelectMode((v) => !v); setSelectedIds(new Set()); }}
+            className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+              selectMode
+                ? "border-brand/30 bg-brand-soft text-brand-strong"
+                : "border-border bg-surface text-foreground hover:bg-surface-muted"
+            }`}
+          >
+            <CheckSquare size={15} strokeWidth={2.2} /> Select
+          </button>
+          <button
+            type="button"
+            onClick={() => setAddOpen(true)}
+            className="btn-brand inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
+          >
+            <Plus size={16} strokeWidth={2.4} /> Add job
+          </button>
+        </div>
       </div>
 
       {banner && (
@@ -151,6 +209,36 @@ export default function DashboardClient() {
         </div>
       )}
 
+      {/* Bulk action bar */}
+      {selectMode && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-brand/30 bg-brand-soft px-4 py-2.5 text-sm">
+          <span className="font-medium text-brand-strong">
+            {selectedIds.size} selected
+          </span>
+          <div className="flex items-center gap-2">
+            {selectedIds.size > 0 && (
+              <>
+                <span className="text-xs text-brand-strong/70 mr-1">Move to:</span>
+                {["wishlist", "applied", "shortlisted", "interview", "offer", "rejected"].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => handleBulkStatus(s)}
+                    disabled={bulkUpdating}
+                    className="rounded-lg border border-brand/20 bg-white/40 px-3 py-1.5 text-xs font-semibold capitalize text-brand-strong transition hover:bg-white/60 disabled:opacity-50"
+                  >
+                    {s === "shortlisted" ? "Shortlist" : s === "wishlist" ? "Wishlist" : s === "applied" ? "Applied" : s === "interview" ? "Interview" : s === "offer" ? "Offer" : "Rejected"}
+                  </button>
+                ))}
+                {bulkUpdating && <Loader2 size={14} className="animate-spin text-brand-strong" />}
+              </>
+            )}
+            <button onClick={exitSelectMode} className="ml-1 rounded-lg p-1.5 text-brand-strong/60 hover:text-brand-strong">
+              <X size={15} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="rounded-card border border-border bg-surface py-12 text-center text-muted">
           Loading applications…
@@ -165,15 +253,33 @@ export default function DashboardClient() {
           onMove={handleMove}
           onDelete={handleDelete}
           onOpen={setDetailId}
+          selectMode={selectMode}
+          selectedIds={selectedIds}
+          onSelect={toggleSelect}
         />
       ) : (
-        <ApplicationList applications={visible} onOpen={setDetailId} />
+        <ApplicationList
+          applications={visible}
+          onOpen={setDetailId}
+          selectMode={selectMode}
+          selectedIds={selectedIds}
+          onSelect={toggleSelect}
+        />
       )}
 
       <AddJobModal
         isOpen={addOpen}
         showImport
         onClose={() => setAddOpen(false)}
+        onSaved={() => {
+          loadApplications();
+          refreshStats();
+        }}
+      />
+
+      <BulkImportModal
+        isOpen={bulkOpen}
+        onClose={() => setBulkOpen(false)}
         onSaved={() => {
           loadApplications();
           refreshStats();

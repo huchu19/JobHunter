@@ -5,7 +5,7 @@ describe("csvFetcher", () => {
   describe("fetchSponsorCSV", () => {
     it("returns CSV text on success from hardcoded fallback", async () => {
       const mockCSV =
-        'Organisation Name,Town/City,County,"Type & Rating",Route\n" Test Ltd","London","","Worker (A rating)","Skilled Worker"';
+        'Sponsor Licence Number,Organisation Name,TierRating,Migrant Classification,Sponsor Status\nAAA111," Test Ltd",Worker (A rating),Skilled Worker,Licensed and Fully Active';
 
       vi.stubGlobal(
         "fetch",

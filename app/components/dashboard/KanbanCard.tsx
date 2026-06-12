@@ -20,6 +20,9 @@ interface KanbanCardProps {
   onOpen: () => void;
   /** Visual-only variant for the drag overlay (no menu/handlers). */
   overlay?: boolean;
+  selectMode?: boolean;
+  selected?: boolean;
+  onSelect?: () => void;
 }
 
 const locationColors: Record<string, string> = {
@@ -55,6 +58,9 @@ export default function KanbanCard({
   onDelete,
   onOpen,
   overlay = false,
+  selectMode = false,
+  selected = false,
+  onSelect,
 }: KanbanCardProps) {
   const [showMenu, setShowMenu] = useState(false);
 
@@ -65,9 +71,13 @@ export default function KanbanCard({
 
   return (
     <div
-      onClick={overlay ? undefined : onOpen}
-      className={`rounded-xl border border-border bg-surface p-3.5 shadow-sm transition-shadow hover:shadow-md ${
-        overlay ? "rotate-2 cursor-grabbing shadow-lg" : "cursor-pointer"
+      onClick={overlay ? undefined : selectMode ? onSelect : onOpen}
+      className={`rounded-xl border p-3.5 shadow-sm transition-shadow hover:shadow-md ${
+        overlay
+          ? "rotate-2 cursor-grabbing border-border bg-surface shadow-lg"
+          : selected
+          ? "cursor-pointer border-brand bg-brand-soft"
+          : "cursor-pointer border-border bg-surface"
       }`}
     >
       <div className="flex items-start justify-between gap-2">
@@ -91,7 +101,17 @@ export default function KanbanCard({
           )}
         </div>
 
-        {!overlay && (
+        {!overlay && selectMode && (
+          <div
+            onClick={(e) => { e.stopPropagation(); onSelect?.(); }}
+            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition ${
+              selected ? "border-brand bg-brand text-white" : "border-border bg-surface"
+            }`}
+          >
+            {selected && <span className="text-[10px] font-bold leading-none">✓</span>}
+          </div>
+        )}
+        {!overlay && !selectMode && (
           <div className="relative">
             <button
               onClick={(e) => {

@@ -28,6 +28,9 @@ interface KanbanBoardProps {
   onMove: (id: string, newStatus: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onOpen: (id: string) => void;
+  selectMode?: boolean;
+  selectedIds?: Set<string>;
+  onSelect?: (id: string) => void;
 }
 
 interface ColumnProps {
@@ -36,9 +39,12 @@ interface ColumnProps {
   onMove: (id: string, newStatus: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onOpen: (id: string) => void;
+  selectMode?: boolean;
+  selectedIds?: Set<string>;
+  onSelect?: (id: string) => void;
 }
 
-function KanbanColumn({ status, cards, onMove, onDelete, onOpen }: ColumnProps) {
+function KanbanColumn({ status, cards, onMove, onDelete, onOpen, selectMode, selectedIds, onSelect }: ColumnProps) {
   const meta = STATUS_META[status as keyof typeof STATUS_META];
   const { setNodeRef, isOver } = useDroppable({ id: status });
 
@@ -75,6 +81,9 @@ function KanbanColumn({ status, cards, onMove, onDelete, onOpen }: ColumnProps) 
               onMove={(newStatus) => onMove(card.id, newStatus)}
               onDelete={() => onDelete(card.id)}
               onOpen={() => onOpen(card.id)}
+              selectMode={selectMode}
+              selected={selectedIds?.has(card.id)}
+              onSelect={() => onSelect?.(card.id)}
             />
           ))}
           {cards.length === 0 && (
@@ -91,6 +100,9 @@ export default function KanbanBoard({
   onMove,
   onDelete,
   onOpen,
+  selectMode,
+  selectedIds,
+  onSelect,
 }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -147,6 +159,9 @@ export default function KanbanBoard({
                 onMove={onMove}
                 onDelete={onDelete}
                 onOpen={onOpen}
+                selectMode={selectMode}
+                selectedIds={selectedIds}
+                onSelect={onSelect}
               />
             ))}
           </div>

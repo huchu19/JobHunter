@@ -9,9 +9,9 @@ export interface Sponsor {
 }
 
 export interface RawSponsorRow {
+  "Sponsor Licence Number": string;
   "Organisation Name": string;
-  "Town/City": string;
-  County: string;
-  "Type & Rating": string;
-  Route: string;
+  TierRating: string;
+  "Migrant Classification": string;
+  "Sponsor Status": string;
 }

@@ -1,5 +1,5 @@
 const FALLBACK_CSV_URL =
-  "https://assets.publishing.service.gov.uk/media/6a1965a6916cd732dcdaacf0/2026-05-29_-_Worker_and_Temporary_Worker.csv";
+  "https://assets.publishing.service.gov.uk/media/6a27fac6f553ec11122217bf/2026-06-09_-_Worker_and_Temporary_Worker.csv";
 
 async function extractCSVLinkFromGovUK(): Promise<string | null> {
   try {
@@ -19,6 +19,9 @@ async function extractCSVLinkFromGovUK(): Promise<string | null> {
     if (!response.ok) return null;
 
     const html = await response.text();
+    // Prefer the absolute assets URL; fall back to first CSV href
+    const absoluteMatch = html.match(/href="(https:\/\/assets\.publishing\.service\.gov\.uk[^"]+\.csv[^"]*)"/);
+    if (absoluteMatch) return absoluteMatch[1];
     const match = html.match(/href="([^"]+\.csv[^"]*)"/);
     return match?.[1] || null;
   } catch {

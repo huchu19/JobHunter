@@ -10,6 +10,9 @@ interface SortableKanbanCardProps {
   onMove: (newStatus: string) => Promise<void>;
   onDelete: () => Promise<void>;
   onOpen: () => void;
+  selectMode?: boolean;
+  selected?: boolean;
+  onSelect?: () => void;
 }
 
 /**
@@ -22,6 +25,9 @@ export default function SortableKanbanCard({
   onMove,
   onDelete,
   onOpen,
+  selectMode,
+  selected,
+  onSelect,
 }: SortableKanbanCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: card.id, data: { status: card.status } });
@@ -33,12 +39,15 @@ export default function SortableKanbanCard({
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={style} {...attributes} {...(selectMode ? {} : listeners)}>
       <KanbanCard
         card={card}
         onMove={onMove}
         onDelete={onDelete}
         onOpen={onOpen}
+        selectMode={selectMode}
+        selected={selected}
+        onSelect={onSelect}
       />
     </div>
   );

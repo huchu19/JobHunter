@@ -48,18 +48,21 @@ async function init() {
 
   board = detectBoard(location.hostname, location.pathname);
 
-  // On a generic site only act when the URL looks application-related, to avoid
-  // littering the badge across the whole web.
-  if (board === "generic" && !isApplicationLikeUrl(location.pathname)) return;
+  const isAppUrl = isApplicationLikeUrl(location.pathname);
 
-  mountBadge();
+  // Known ATS boards always get the full badge. Generic sites always get
+  // the Save Job button (user browses any company careers page); Autofill
+  // is gated to URLs that look like actual application forms.
+  if (board === "generic" && !isAppUrl && !settings.autofillEnabled && !settings.captureEnabled) return;
+
+  mountBadge(board !== "generic" || isAppUrl);
   if (settings.captureEnabled) watchForSubmit();
 }
 
 // ---------------------------------------------------------------------------
 // Floating action UI
 // ---------------------------------------------------------------------------
-function mountBadge() {
+function mountBadge(showAutofill = true) {
   if (document.getElementById("ukf-badge")) return;
 
   const wrap = document.createElement("div");
@@ -75,11 +78,12 @@ function mountBadge() {
     fontFamily: "system-ui, -apple-system, sans-serif",
   });
 
-  if (settings.autofillEnabled) {
+  if (settings.autofillEnabled && showAutofill) {
     wrap.appendChild(
       makeButton("✨ Autofill", "#4f46e5", "#ffffff", onAutofill)
     );
   }
+  // Save Job button is always shown when capture is enabled (regardless of URL).
   if (settings.captureEnabled) {
     wrap.appendChild(
       makeButton("＋ Save job", "#ffffff", "#4f46e5", onManualSave, true)

@@ -1,77 +1,52 @@
 import { Sponsor, RawSponsorRow } from "@/app/types/sponsor";
-import { buildPostcodeRegex } from "./londonAreas";
 
 function normalizeString(str: string | undefined): string {
   return (str || "").trim();
 }
 
-export function isLondon(city: string | undefined): boolean {
-  const normalized = normalizeString(city).toLowerCase();
-
-  // Exact match: "London" (case-insensitive)
-  if (normalized === "london") {
-    return true;
-  }
-
-  // Postcode-based match: must start with the postcode code
-  const postcodeRegex = /^(ec[1-4]|wc[1-2]|e[1-2]|n1|se1|sw1|w[1-2])/i;
-  return postcodeRegex.test(normalized);
-}
-
 export function isARated(rating: string | undefined): boolean {
   const normalized = normalizeString(rating);
-  // Exact values from CSV inspection: "Worker (A rating)" or "Worker (A (Premium))"
-  return (
-    normalized.includes("Worker (A") &&
-    !normalized.includes("Temporary Worker")
-  );
+  // New CSV format: "Worker (A rating)" — excludes Temporary Worker rows
+  return normalized === "Worker (A rating)";
 }
 
-export function isSkilledWorker(route: string | undefined): boolean {
-  const normalized = normalizeString(route);
-  // Exact value from CSV: "Skilled Worker"
+export function isSkilledWorker(classification: string | undefined): boolean {
+  const normalized = normalizeString(classification);
+  // New CSV column: "Migrant Classification" — value "Skilled Worker"
   return normalized === "Skilled Worker";
 }
 
 export function filterSponsors(rows: RawSponsorRow[]): Sponsor[] {
   const filtered = rows.filter((row) => {
     const name = normalizeString(row["Organisation Name"]);
-    const city = normalizeString(row["Town/City"]);
-    const rating = normalizeString(row["Type & Rating"]);
-    const route = normalizeString(row["Route"]);
+    const rating = normalizeString(row["TierRating"]);
+    const classification = normalizeString(row["Migrant Classification"]);
 
-    // Skip empty names
     if (!name) return false;
-
-    // Apply filters
-    if (!isLondon(city)) return false;
     if (!isARated(rating)) return false;
-    if (!isSkilledWorker(route)) return false;
+    if (!isSkilledWorker(classification)) return false;
 
     return true;
   });
 
-  // Map to Sponsor and deduplicate by name + city
+  // Deduplicate by name (no city in new CSV)
   const seen = new Set<string>();
   const sponsors: Sponsor[] = [];
 
   for (const row of filtered) {
     const name = normalizeString(row["Organisation Name"]);
-    const city = normalizeString(row["Town/City"]);
-    const key = `${name}|${city}`;
 
-    if (seen.has(key)) continue;
-    seen.add(key);
+    if (seen.has(name)) continue;
+    seen.add(name);
 
     sponsors.push({
       name,
-      city,
-      rating: normalizeString(row["Type & Rating"]),
-      route: normalizeString(row["Route"]),
+      city: "",
+      rating: normalizeString(row["TierRating"]),
+      route: normalizeString(row["Migrant Classification"]),
     });
   }
 
-  // Sort alphabetically by name
   sponsors.sort((a, b) => a.name.localeCompare(b.name));
 
   return sponsors;
