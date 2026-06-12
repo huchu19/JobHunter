@@ -1,4 +1,6 @@
 import { Suspense } from "react";
+import Link from "next/link";
+import { BookOpen } from "lucide-react";
 import SponsorSearch from "@/app/components/sponsors/SponsorSearch";
 
 export default function SponsorsPage() {
@@ -17,6 +19,12 @@ export default function SponsorsPage() {
           filtering — by area, sector, or company name. Live from the gov.uk
           register.
         </p>
+        <Link
+          href="/guides"
+          className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-brand-strong hover:underline"
+        >
+          <BookOpen size={14} /> New to sponsorship? Read the visa guide
+        </Link>
       </header>
 
       <div className="flex-1 overflow-auto">

@@ -11,6 +11,7 @@ import {
   Radio,
   FileUser,
   BarChart3,
+  BookOpen,
 } from "lucide-react";
 import ThemeToggle from "@/app/components/ThemeToggle";
 
@@ -24,6 +25,7 @@ const navLinks: NavLink[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/sponsors", label: "Find Sponsors", icon: Compass },
+  { href: "/guides", label: "Visa Guide", icon: BookOpen },
   { href: "/profile", label: "Application Profile", icon: FileUser },
 ];
 

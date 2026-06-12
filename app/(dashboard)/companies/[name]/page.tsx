@@ -246,7 +246,13 @@ async function CompanyContent({ name }: { name: string }) {
         </ol>
         <p className="mt-3 text-xs text-muted-2">
           Estimates based on published gov.uk service standards; actual times
-          vary by employer and application route.
+          vary by employer and application route.{" "}
+          <Link
+            href="/guides/visa-timeline"
+            className="font-medium text-brand-strong hover:underline"
+          >
+            Read the full timeline guide →
+          </Link>
         </p>
       </div>
     </div>

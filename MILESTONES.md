@@ -31,11 +31,11 @@ of Done" in [AGENTS.md](AGENTS.md).
 | 6 | Smart Notifications | 🔄 Planned | Low | 1–2d |
 | 7 | Mobile App | 🔄 Planned | Low | 4–5d |
 | 8 | User Accounts & Sync | 🔄 Planned | Medium | 2–3d |
-| 9 | Visa Sponsorship Guide | 🔄 Planned | Low | 1d |
+| 9 | Visa Sponsorship Guide | ✅ Complete | Low | — |
 | 10 | Advanced Search & Matching | 🔄 Planned | Low | 2–3d |
 
-**Done:** 10 / 15  ·  **Next up:** Milestone 9 (Visa Sponsorship Guide)
-**Recommended order:** ~~5~~ → 9 → 6 → 10 → 8 → 7
+**Done:** 11 / 15  ·  **Next up:** Milestone 6 (Smart Notifications)
+**Recommended order:** ~~5~~ → ~~9~~ → 6 → 10 → 8 → 7
 
 > Per-milestone **Definition of Done** (repeated as a checklist in each section):
 > [ ] meets Acceptance · [ ] `npm test` green · [ ] `npm run build` clean / 0 TS
@@ -599,24 +599,51 @@ on phone → refresh web → updated.
 
 ---
 
-## 🔄 Milestone 9: Visa Sponsorship Guide
+## ✅ Milestone 9: Visa Sponsorship Guide
 
-**Status:** 🔄 Planned · 2026 · Priority: Low · Effort: 1d
+**Status:** ✅ Complete · Shipped Jun 12, 2026 · Priority: Low
 
 Help users understand the sponsorship process.
 
+### Implementation
+- **Markdown content** in `content/guides/*.md` — five guides: visa timeline,
+  eligibility checklist, sponsor obligations, common mistakes, FAQ. Figures
+  (salary thresholds £41,700 / £33,400, fees, IHS £1,035/yr, £1,270
+  maintenance, 3w/8w decision standards) checked against the live gov.uk
+  pages on Jun 12, 2026 and dated in the content with links to the always-
+  current sources.
+- **Dependency-free markdown renderer** — `app/lib/markdown.ts` (pure parser:
+  headings, lists, blockquotes, links/bold/code + `extractLinks`) rendered by
+  `app/components/guides/MarkdownContent.tsx`; same no-new-deps approach as
+  the analytics charts. `app/lib/guides.ts` registry + fs loader (registered
+  slugs only — no path traversal).
+- **Pages:** `/guides` index (guide cards + official gov.uk source list) and
+  `/guides/[slug]` (statically generated via `generateStaticParams`,
+  `notFound()` on unknown slugs, "More guides" footer).
+- **Links in:** sidebar "Visa Guide" nav entry; sponsor search page header;
+  company research page visa panel → `/guides/visa-timeline`.
+
 ### Tasks
-- [ ] Static `/guides` section (Markdown-based content)
-- [ ] Content: visa timeline, eligibility checklist, sponsor obligations, common
+- [x] Static `/guides` section (Markdown-based content)
+- [x] Content: visa timeline, eligibility checklist, sponsor obligations, common
       mistakes, FAQ, gov.uk/UKVI links
-- [ ] Link from sponsor detail page to relevant sections
+- [x] Link from sponsor pages (sponsor finder header + company research page)
+      to relevant sections
 
-**Testing:** All links work; content checked against gov.uk.
+**Testing:** `npm test` 157 passing (16 new: inline/blocks/list/quote parsing,
+empty-input safety, link extraction; guide registry uniqueness, fs loading +
+parse of all five guides, path-traversal rejection, internal links resolve to
+registered slugs, external links restricted to https gov.uk). Live: all 6
+pages render 200, unknown slug → 404, and **all 8 external gov.uk links
+return 200** (curl-verified Jun 12, 2026). Content figures cross-checked
+against gov.uk/skilled-worker-visa, /how-much-it-costs, /your-job, and
+/uk-visa-sponsorship-employers.
 
-**Acceptance:** Guide section accessible and helpful.
+**Acceptance:** Guide section accessible and helpful. ✅
 
 ### Definition of Done
-- [ ] Meets Acceptance  - [ ] `npm run build` clean  - [ ] Links verified  - [ ] Dashboard + summary table updated
+- [x] Meets Acceptance  - [x] `npm test` green (157)  - [x] `npm run build` clean / 0 TS errors
+- [x] Links verified (8/8 gov.uk 200)  - [x] No AI dependency  - [x] Dashboard + summary table updated
 
 ---
 
@@ -653,8 +680,8 @@ profile (tech stack, experience, salary range).
 - **3 (drag-drop)** ✅ shipped in M3.5.
 - **4 (analytics)** ✅ funnel, weekly timeline, conversions, stage timings.
 - **5 (ratings)** ✅ company research page + community ratings + visa timeline.
-- **9 (guide)** — **next up**; answers user anxiety cheaply.
-- **6 (notifications)** reduces churn.
+- **9 (guide)** ✅ markdown /guides section, gov.uk-checked content.
+- **6 (notifications)** — **next up**; reduces churn.
 - **10 (AI matching)** drives engagement.
 - **8 (accounts/sync)** unlocks mobile and real multi-device use.
 - **7 (mobile)** is the longer-term investment.
