@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo } from "react";
+import Link from "next/link";
 import Fuse from "fuse.js";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
@@ -278,6 +279,12 @@ export default function SponsorSearch() {
                     </div>
 
                     <div className="flex shrink-0 items-center gap-1.5">
+                      <Link
+                        href={`/companies/${encodeURIComponent(sponsor.name)}`}
+                        className="hidden items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted transition hover:bg-surface-muted hover:text-foreground md:inline-flex"
+                      >
+                        Research
+                      </Link>
                       <a
                         href={linkedInJobsUrl(sponsor.name)}
                         target="_blank"

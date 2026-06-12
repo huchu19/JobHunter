@@ -18,3 +18,15 @@ export function googleCareersUrl(company: string): string {
     `${company} careers`
   )}`;
 }
+
+export function glassdoorSearchUrl(company: string): string {
+  return `https://www.glassdoor.co.uk/Search/results.htm?keyword=${encodeURIComponent(
+    company
+  )}`;
+}
+
+export function googleSalaryUrl(company: string): string {
+  return `https://www.google.com/search?q=${encodeURIComponent(
+    `${company} salary benefits london`
+  )}`;
+}

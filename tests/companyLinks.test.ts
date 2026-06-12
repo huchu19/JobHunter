@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { linkedInJobsUrl, googleCareersUrl } from "@/app/lib/companyLinks";
+import {
+  linkedInJobsUrl,
+  googleCareersUrl,
+  glassdoorSearchUrl,
+  googleSalaryUrl,
+} from "@/app/lib/companyLinks";
 
 describe("companyLinks", () => {
   describe("linkedInJobsUrl", () => {
@@ -26,6 +31,22 @@ describe("companyLinks", () => {
     it("encodes company names with ampersands", () => {
       expect(googleCareersUrl("R&A Lee Holdings")).toBe(
         "https://www.google.com/search?q=R%26A%20Lee%20Holdings%20careers"
+      );
+    });
+  });
+
+  describe("glassdoorSearchUrl", () => {
+    it("builds an encoded Glassdoor search URL", () => {
+      expect(glassdoorSearchUrl("Monzo Bank")).toBe(
+        "https://www.glassdoor.co.uk/Search/results.htm?keyword=Monzo%20Bank"
+      );
+    });
+  });
+
+  describe("googleSalaryUrl", () => {
+    it("builds an encoded salary search URL", () => {
+      expect(googleSalaryUrl("Monzo")).toBe(
+        "https://www.google.com/search?q=Monzo%20salary%20benefits%20london"
       );
     });
   });

@@ -75,6 +75,31 @@ model Activity {
   @@index([occurredAt])
 }
 
+// A researched company: created lazily the first time it is rated. Aggregated
+// ratings power the /companies/[name] research page. Name matches the
+// Application.company string (case-insensitive lookup is done in the route).
+model Company {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  ratings   Rating[]
+  createdAt DateTime @default(now())
+}
+
+// A single 1–5-star rating of a company in one category
+// ("work-culture" | "sponsorship" | "responsiveness"), with an optional
+// anonymous comment.
+model Rating {
+  id        String   @id @default(cuid())
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+  rating    Int // 1-5 stars
+  comment   String?
+  category  String // "work-culture" | "sponsorship" | "responsiveness"
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+}
+
 // Single-row reusable application profile. Holds answers to common job-application
 // questions, mostly auto-extracted from an uploaded resume via the Claude API.
 // Surfaced on /profile with copy-to-clipboard for fast pasting into external forms.

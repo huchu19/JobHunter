@@ -16,10 +16,12 @@ import type {
   JobType,
   LocationType,
 } from "@/app/types/application";
+import Link from "next/link";
 import { STATUSES, STATUS_META } from "@/app/lib/applicationStatus";
 import { fieldClass, labelClass } from "./formClasses";
 import PriorityStars from "./PriorityStars";
 import ActivityTimeline from "./ActivityTimeline";
+import RatingForm from "@/app/components/companies/RatingForm";
 
 interface ApplicationDetailProps {
   applicationId: string | null;
@@ -548,6 +550,22 @@ export default function ApplicationDetail({
               </div>
 
               <ActivityTimeline activities={activities} />
+            </div>
+
+            {/* Company research + rating */}
+            <div className="border-t border-border pt-5">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-foreground">
+                  Rate {app.company}
+                </h3>
+                <Link
+                  href={`/companies/${encodeURIComponent(app.company)}`}
+                  className="inline-flex items-center gap-1 text-sm font-medium text-brand-strong hover:underline"
+                >
+                  Company research <ExternalLink size={13} />
+                </Link>
+              </div>
+              <RatingForm companyName={app.company} />
             </div>
           </div>
         )}

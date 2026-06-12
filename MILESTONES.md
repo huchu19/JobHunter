@@ -27,15 +27,15 @@ of Done" in [AGENTS.md](AGENTS.md).
 | 3.6 | Dark Mode (System-default toggle) | ✅ Complete | Medium | — |
 | 4 | Analytics & Insights | ✅ Complete | Medium | — |
 | 4.5 | Flow Acceleration (bulk import, bulk status, extension save) | ✅ Complete | High | — |
-| 5 | Company Research & Ratings | 🔄 Planned | Medium | 2–3d |
+| 5 | Company Research & Ratings | ✅ Complete | Medium | — |
 | 6 | Smart Notifications | 🔄 Planned | Low | 1–2d |
 | 7 | Mobile App | 🔄 Planned | Low | 4–5d |
 | 8 | User Accounts & Sync | 🔄 Planned | Medium | 2–3d |
 | 9 | Visa Sponsorship Guide | 🔄 Planned | Low | 1d |
 | 10 | Advanced Search & Matching | 🔄 Planned | Low | 2–3d |
 
-**Done:** 9 / 15  ·  **Next up:** Milestone 8 (User Accounts & Sync)
-**Recommended order:** 8 → 5 → 6 → 9 → 10 → 7
+**Done:** 10 / 15  ·  **Next up:** Milestone 9 (Visa Sponsorship Guide)
+**Recommended order:** ~~5~~ → 9 → 6 → 10 → 8 → 7
 
 > Per-milestone **Definition of Done** (repeated as a checklist in each section):
 > [ ] meets Acceptance · [ ] `npm test` green · [ ] `npm run build` clean / 0 TS
@@ -443,51 +443,60 @@ browse sponsors → find job postings → bulk-save them → batch-move to Appli
 
 ---
 
-## 🔄 Milestone 5: Company Research & Ratings
+## ✅ Milestone 5: Company Research & Ratings
 
-**Status:** 🔄 Planned · Q4 2026 · Priority: Medium · Effort: 2–3d
+**Status:** ✅ Complete · Shipped Jun 12, 2026 · Priority: Medium
 
 Enriched company data to help prioritize applications.
 
 ### What
-Company detail page (salary ranges, benefits, sponsorship history); user ratings
-(culture / sponsorship / responsiveness); anonymous community feedback; visa
-timeline estimates; location insights.
+Company research page at `/companies/[name]` (aggregated ratings, your
+application history with the company, salary intel from tracked roles,
+external research links, visa timeline estimate); user ratings
+(work-culture / sponsorship / responsiveness) with anonymous comments;
+deterministic Skilled Worker visa timeline estimates.
 
 ### Implementation
-```prisma
-model Company {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  ratings   Rating[]
-  createdAt DateTime @default(now())
-}
-model Rating {
-  id        String   @id @default(cuid())
-  company   Company  @relation(fields: [companyId], references: [id])
-  companyId String
-  rating    Int      // 1-5 stars
-  comment   String?
-  category  String   // "work-culture" | "sponsorship" | "responsiveness"
-  createdAt DateTime @default(now())
-}
-```
+- `prisma/schema.prisma`: `Company` (+unique name) + `Rating`
+  (`onDelete: Cascade`, `@@index([companyId])`), applied via `prisma db push`.
+- `app/lib/companyRatings.ts` — pure validation + aggregation
+  (`isValidStars`, `isRatingCategory`, `averageRating` 1dp,
+  `ratingDistribution`, `aggregateRatings`, `filterByCategory`) shared by the
+  API and the panel; `app/lib/visaTimeline.ts` — static gov.uk-derived stage
+  data + `estimateVisaTimeline`/`formatWeeksRange`. Matching tests for both,
+  plus `glassdoorSearchUrl`/`googleSalaryUrl` added to `companyLinks`.
+- `GET`/`POST /api/companies/[name]/ratings` — Company row created lazily on
+  first rating; case-insensitive name lookup in JS (SQLite Prisma has no
+  insensitive mode); `?category=` filter; 400s on bad stars/category.
+- `app/(dashboard)/companies/[name]/page.tsx` — server component; sponsor
+  badge reuses `sponsorMatch` + `sponsorCache` (falls back to the
+  application-derived `sponsorVerified` flag); visa timeline panel.
+- `CompanyRatingsPanel` (aggregates, distribution bars, category filter
+  chips, comment list) + reusable `RatingForm` — also mounted in the
+  `ApplicationDetail` drawer ("Rate {company}" + "Company research" link),
+  and a "Research" link on every sponsor search row.
 
 ### Tasks
-- [ ] `Company` + `Rating` models + migration
-- [ ] `/companies/[name]` route
-- [ ] Rating form (stars + comment) on application detail
-- [ ] Aggregate ratings (avg + distribution), filter by category
-- [ ] Visa timeline estimates
+- [x] `Company` + `Rating` models + `db push` (this repo uses push, not migrate)
+- [x] `/companies/[name]` route
+- [x] Rating form (stars + comment) on application detail
+- [x] Aggregate ratings (avg + distribution), filter by category
+- [x] Visa timeline estimates
 
-**Testing:** Create company, add 3 ratings, verify avg; ratings show on profile;
-category filter works.
+**Testing:** `npm test` 141 passing (19 new: star/category validation, 1dp
+averaging, distribution bucketing incl. out-of-range rejection, category
+filtering, spec scenario "3 ratings → correct avg", empty-list safety, visa
+stage sanity + range summing + formatting, new link builders). Live-API check:
+3 ratings POSTed → company lazily created, GET aggregate list + `?category=`
+filter correct, invalid stars/category → 400, case-insensitive name lookup
+works, `/companies/[name]` renders 200. Test data cleaned up after.
 
-**Acceptance:** Company page shows aggregated ratings from real users.
+**Acceptance:** Company page shows aggregated ratings from real users. ✅
 
 ### Definition of Done
-- [ ] Meets Acceptance  - [ ] `npm test` green  - [ ] `npm run build` clean / 0 TS errors
-- [ ] Migration committed  - [ ] Dashboard + summary table updated
+- [x] Meets Acceptance  - [x] `npm test` green (141)  - [x] `npm run build` clean / 0 TS errors
+- [x] Schema change committed (`db push` applied)  - [x] No AI dependency (works without `ANTHROPIC_API_KEY`)
+- [x] Dashboard + summary table updated
 
 ---
 
@@ -639,14 +648,13 @@ profile (tech stack, experience, salary range).
 
 **Total remaining effort:** ~20–25 dev-days (excluding testing & polish).
 
-**Recommended order:** ~~2~~ → ~~3~~ → ~~4~~ → 8 → 5 → 6 → 9 → 10 → 7
+**Recommended order:** ~~2~~ → ~~3~~ → ~~4~~ → ~~5~~ → 9 → 6 → 10 → 8 → 7
 - **2 (extension)** ✅ removed the most user friction → highest impact.
 - **3 (drag-drop)** ✅ shipped in M3.5.
 - **4 (analytics)** ✅ funnel, weekly timeline, conversions, stage timings.
-- **8 (accounts/sync)** — **next up**; unlocks multi-device and mobile.
-- **8 (accounts/sync)** unlocks mobile and real multi-device use.
-- **5 (ratings)** builds community signal.
+- **5 (ratings)** ✅ company research page + community ratings + visa timeline.
+- **9 (guide)** — **next up**; answers user anxiety cheaply.
 - **6 (notifications)** reduces churn.
-- **9 (guide)** answers user anxiety cheaply.
 - **10 (AI matching)** drives engagement.
+- **8 (accounts/sync)** unlocks mobile and real multi-device use.
 - **7 (mobile)** is the longer-term investment.
