@@ -28,3 +28,29 @@ export async function fetchSponsorsFromCache(): Promise<{ name: string }[]> {
     return cachedSponsors;
   }
 }
+
+// Full sponsor objects (name/city/isTech/techScore) for the matcher, cached
+// separately so the lighter name-only cache keeps its small footprint.
+import type { Sponsor } from "@/app/types/sponsor";
+
+let cachedDetailed: Sponsor[] = [];
+let detailedCacheTime = 0;
+
+export async function fetchDetailedSponsorsFromCache(): Promise<Sponsor[]> {
+  const now = Date.now();
+  if (cachedDetailed.length > 0 && now - detailedCacheTime < SPONSORS_CACHE_TTL) {
+    return cachedDetailed;
+  }
+
+  try {
+    const response = await fetch("http://localhost:3000/api/sponsors", {
+      cache: "no-store",
+    });
+    const data = await response.json();
+    cachedDetailed = (data.sponsors as Sponsor[]) || [];
+    detailedCacheTime = now;
+    return cachedDetailed;
+  } catch {
+    return cachedDetailed;
+  }
+}

@@ -35,16 +35,21 @@ async function runTests() {
     }
     console.log();
 
-    // Count filters (new schema: no Town/City column)
-    const aRated = rawRows.filter((r) =>
-      r["TierRating"] === "Worker (A rating)"
+    // Count filters
+    const london = rawRows.filter((r) =>
+      r["Town/City"]?.toLowerCase().includes("london")
     );
-    console.log(`A-rated Worker: ${aRated.length} rows`);
+    console.log(`London matches: ${london.length} rows`);
+
+    const aRated = london.filter((r) =>
+      r["Type & Rating"]?.includes("Worker (A")
+    );
+    console.log(`London + A-rated: ${aRated.length} rows`);
 
     const skilledWorker = aRated.filter(
-      (r) => r["Migrant Classification"]?.trim() === "Skilled Worker"
+      (r) => r.Route?.trim() === "Skilled Worker"
     );
-    console.log(`A-rated + Skilled Worker: ${skilledWorker.length} rows\n`);
+    console.log(`London + A-rated + Skilled Worker: ${skilledWorker.length} rows\n`);
 
     // Apply filter
     console.log("Applying filterSponsors...");

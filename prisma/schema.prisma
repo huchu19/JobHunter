@@ -92,6 +92,11 @@ model NotificationSettings {
   // Browser
   browserEnabled Boolean @default(false)
 
+  // Sponsor matching (Milestone 10): JSON array of company names from the
+  // last match run, so the daily job can email "N new sponsors matched".
+  matchSnapshot  String?
+  lastMatchRunAt DateTime?
+
   updatedAt DateTime @updatedAt
 }
 

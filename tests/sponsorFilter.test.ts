@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  isLondon,
   isARated,
   isSkilledWorker,
   filterSponsors,
@@ -7,15 +8,42 @@ import {
 import { RawSponsorRow } from "@/app/types/sponsor";
 
 describe("sponsorFilter", () => {
-  describe("isARated", () => {
-    it("matches A-rated Worker entries", () => {
-      expect(isARated("Worker (A rating)")).toBe(true);
+  describe("isLondon", () => {
+    it("matches 'London' (case-insensitive)", () => {
+      expect(isLondon("London")).toBe(true);
+      expect(isLondon("london")).toBe(true);
+      expect(isLondon("LONDON")).toBe(true);
+      expect(isLondon(" London ")).toBe(true);
     });
 
-    it("rejects Temporary Worker and B-rated entries", () => {
+    it("matches London postcodes", () => {
+      expect(isLondon("EC1N 8LE")).toBe(true);
+      expect(isLondon("E2 6LT")).toBe(true);
+      expect(isLondon("N1 9GU")).toBe(true);
+      expect(isLondon("WC1A 1AA")).toBe(true);
+    });
+
+    it("rejects non-London cities", () => {
+      expect(isLondon("Manchester")).toBe(false);
+      expect(isLondon("Leeds")).toBe(false);
+      expect(isLondon("Edinburgh")).toBe(false);
+    });
+
+    it("handles empty/undefined values", () => {
+      expect(isLondon("")).toBe(false);
+      expect(isLondon(undefined)).toBe(false);
+    });
+  });
+
+  describe("isARated", () => {
+    it("matches A-rated entries", () => {
+      expect(isARated("Worker (A rating)")).toBe(true);
+      expect(isARated("Worker (A (Premium))")).toBe(true);
+    });
+
+    it("rejects B-rated and Temporary Worker", () => {
       expect(isARated("Worker (B rating)")).toBe(false);
       expect(isARated("Temporary Worker (A rating)")).toBe(false);
-      expect(isARated("Worker (A (Premium))")).toBe(false);
     });
 
     it("handles empty/undefined values", () => {
@@ -25,15 +53,14 @@ describe("sponsorFilter", () => {
   });
 
   describe("isSkilledWorker", () => {
-    it("matches exact Skilled Worker classification", () => {
+    it("matches exact Skilled Worker route", () => {
       expect(isSkilledWorker("Skilled Worker")).toBe(true);
       expect(isSkilledWorker(" Skilled Worker ")).toBe(true);
     });
 
-    it("rejects other classifications", () => {
+    it("rejects other routes", () => {
       expect(isSkilledWorker("Global Business Mobility: Senior or Specialist Worker")).toBe(false);
       expect(isSkilledWorker("Global Business Mobility: Graduate Trainee")).toBe(false);
-      expect(isSkilledWorker("International Agreement")).toBe(false);
     });
 
     it("handles empty/undefined values", () => {
@@ -45,58 +72,66 @@ describe("sponsorFilter", () => {
   describe("filterSponsors", () => {
     const mockRows: RawSponsorRow[] = [
       {
-        "Sponsor Licence Number": "AAA111",
         "Organisation Name": " Monzo Bank Ltd",
-        TierRating: "Worker (A rating)",
-        "Migrant Classification": "Skilled Worker",
-        "Sponsor Status": "Licensed and Fully Active",
+        "Town/City": "London",
+        County: "",
+        "Type & Rating": "Worker (A rating)",
+        Route: "Skilled Worker",
       },
       {
-        "Sponsor Licence Number": "BBB222",
-        "Organisation Name": " Some Temp Agency Ltd",
-        TierRating: "Temporary Worker (A rating)",
-        "Migrant Classification": "Creative Worker",
-        "Sponsor Status": "Licensed and Fully Active",
+        "Organisation Name": " Google (UK) Limited",
+        "Town/City": "London",
+        County: "",
+        "Type & Rating": "Worker (A (Premium))",
+        Route: "Skilled Worker",
       },
       {
-        "Sponsor Licence Number": "CCC333",
-        "Organisation Name": " GBM Corp Ltd",
-        TierRating: "Worker (A rating)",
-        "Migrant Classification": "Global Business Mobility: Senior or Specialist Worker",
-        "Sponsor Status": "Licensed and Fully Active",
+        "Organisation Name": " Some Ltd",
+        "Town/City": "Manchester",
+        County: "",
+        "Type & Rating": "Worker (A rating)",
+        Route: "Skilled Worker",
       },
       {
-        "Sponsor Licence Number": "DDD444",
         "Organisation Name": " Duplicate Ltd",
-        TierRating: "Worker (A rating)",
-        "Migrant Classification": "Skilled Worker",
-        "Sponsor Status": "Licensed and Fully Active",
+        "Town/City": "London",
+        County: "",
+        "Type & Rating": "Worker (A rating)",
+        Route: "Skilled Worker",
       },
       {
-        "Sponsor Licence Number": "DDD444",
         "Organisation Name": " Duplicate Ltd",
-        TierRating: "Worker (A rating)",
-        "Migrant Classification": "Skilled Worker",
-        "Sponsor Status": "Licensed and Fully Active",
+        "Town/City": "London",
+        County: "",
+        "Type & Rating": "Worker (A rating)",
+        Route: "Skilled Worker",
       },
     ];
 
-    it("filters to A-rated Skilled Worker sponsors only", () => {
+    it("filters by London, A-rated, and Skilled Worker", () => {
       const result = filterSponsors(mockRows);
-      expect(result.length).toBe(2);
-      expect(result.map((r) => r.name)).toEqual(["Duplicate Ltd", "Monzo Bank Ltd"]);
+      expect(result.length).toBe(3);
+      expect(result.map((r) => r.name)).toEqual([
+        "Duplicate Ltd",
+        "Google (UK) Limited",
+        "Monzo Bank Ltd",
+      ]);
     });
 
-    it("deduplicates by name", () => {
+    it("deduplicates by name + city", () => {
       const result = filterSponsors(mockRows);
-      const duplicateCount = result.filter((r) => r.name === "Duplicate Ltd").length;
+      const duplicateCount = result.filter(
+        (r) => r.name === "Duplicate Ltd"
+      ).length;
       expect(duplicateCount).toBe(1);
     });
 
     it("returns sorted results", () => {
       const result = filterSponsors(mockRows);
       for (let i = 1; i < result.length; i++) {
-        expect(result[i].name.localeCompare(result[i - 1].name)).toBeGreaterThanOrEqual(0);
+        expect(result[i].name.localeCompare(result[i - 1].name)).toBeGreaterThan(
+          -1
+        );
       }
     });
 

@@ -32,10 +32,10 @@ of Done" in [AGENTS.md](AGENTS.md).
 | 7 | Mobile App | 🔄 Planned | Low | 4–5d |
 | 8 | User Accounts & Sync | 🔄 Planned | Medium | 2–3d |
 | 9 | Visa Sponsorship Guide | ✅ Complete | Low | — |
-| 10 | Advanced Search & Matching | 🔄 Planned | Low | 2–3d |
+| 10 | Advanced Search & Matching | ✅ Complete (AI/email ⏸️ need keys) | Low | — |
 
-**Done:** 12 / 15  ·  **Next up:** Milestone 10 (Advanced Search & Matching)
-**Recommended order:** ~~5~~ → ~~9~~ → ~~6~~ → 10 → 8 → 7
+**Done:** 13 / 15  ·  **Next up:** Milestone 8 (User Accounts & Sync)
+**Recommended order:** ~~5~~ → ~~9~~ → ~~6~~ → ~~10~~ → 8 → 7
 
 > Per-milestone **Definition of Done** (repeated as a checklist in each section):
 > [ ] meets Acceptance · [ ] `npm test` green · [ ] `npm run build` clean / 0 TS
@@ -685,27 +685,71 @@ against gov.uk/skilled-worker-visa, /how-much-it-costs, /your-job, and
 
 ---
 
-## 🔄 Milestone 10: Advanced Search & Matching
+## ✅ Milestone 10: Advanced Search & Matching
 
-**Status:** 🔄 Planned · 2027 · Priority: Low · Effort: 2–3d
+**Status:** ✅ Complete (AI re-rank + match emails ⏸️ blocked: need
+`ANTHROPIC_API_KEY` / `RESEND_API_KEY` + scheduler) · Shipped Jun 12, 2026
 
 AI-powered sponsor matching based on the user's background. Reuses the Milestone 1.5
 profile (tech stack, experience, salary range).
 
+### Implementation
+- **Deterministic scoring** `app/lib/sponsorMatcher.ts` — extracts profile
+  signals (skill tokens, salary expectation via range-aware parsing, tech-
+  profile detection), maps skills to `techClassifier` company-name terms via
+  an affinity table (python → ai/data/labs…, devops → cloud/systems…), and
+  scores every sponsor with human-readable reasons (`"robotics" in company
+  name`, `python ↔ ai, data`). `topSponsorMatches` excludes already-tracked
+  companies. 16 tests, incl. the spec scenario.
+- **AI layer (optional)** — with `ANTHROPIC_API_KEY`, `GET /api/match` asks
+  Claude to re-rank the deterministic top-25 into a top-10 with one-line
+  "why" blurbs; any failure falls back to the deterministic order
+  (⏸️ blocked: quality unverified without a key).
+- **`/matches` page** — "Top 10 sponsors for your profile" with rank,
+  reasons, Research/Jobs links, an AI-ranked badge when active, and a
+  fill-your-profile empty state. Sidebar "Matches" link.
+- **Salary comparison** — `compareSalary`: profile expectation vs the
+  £41,700 Skilled Worker threshold vs the average lower-bound of salaries on
+  tracked listings; rendered as a "Salary check" panel linking the
+  eligibility guide.
+- **Daily matching job** — `POST /api/match/run` diffs current matches
+  against the snapshot persisted on `NotificationSettings.matchSnapshot`
+  and emails "N new sponsors matched" via the M6 env-gated transport
+  (⏸️ blocked: delivery needs `RESEND_API_KEY`; scheduling needs cron infra —
+  point a daily cron at this endpoint).
+- `fetchDetailedSponsorsFromCache` added to `sponsorCache` (full sponsor
+  objects, 1h TTL) so matching reuses the ISR-cached register.
+- **Fix:** restored `sponsorFilter`/`RawSponsorRow` to the live gov.uk CSV
+  schema (`Town/City` / `Type & Rating` / `Route`) — the M4.5 refactor had
+  switched them to non-existent columns, silently filtering the register to
+  0 sponsors and breaking verification app-wide. `npm run test:fetch` →
+  34,844 sponsors again.
+
 ### Tasks
-- [ ] Scoring function: match user skills → company tech keywords
+- [x] Scoring function: match user skills → company tech keywords
       (reuse `app/lib/techClassifier.ts`)
-- [ ] "Top 10 sponsors for your profile" view
-- [ ] Daily matching cron + "N new sponsors matched" email alerts
-- [ ] Salary comparison for matched sponsors
+- [x] "Top 10 sponsors for your profile" view
+- [x] Daily matching job + "N new sponsors matched" email alerts
+      (⏸️ blocked: cron infra + `RESEND_API_KEY`, as in Milestone 6)
+- [x] Salary comparison for matched sponsors
 
-**Testing:** Profile (Python, 2 yrs, £60k+) → matcher surfaces relevant sponsors.
+**Testing:** `npm test` 193 passing (16 new: salary parsing incl. "£40–60k"
+lower bound, range scaling, signal extraction from skills + prose, spec
+scenario Python/£60k+ → AI-data companies outscore restaurants/plumbers,
+direct name hits, top-N with exclusion, threshold comparison). Live
+(Jun 12, 2026, real profile + register): `GET /api/match` → 10 relevant
+software/AI/data sponsors with reasons; salary panel correctly flags a £40k
+expectation as below £41,700; `POST /api/match/run` → 10 new on first run,
+0 new on the second (snapshot diff), email no-op with reason; `/matches`
+renders 200.
 
-**Acceptance:** Recommendations are accurate and relevant.
+**Acceptance:** Recommendations are accurate and relevant. ✅ (deterministic
+path; AI re-rank pending a key)
 
 ### Definition of Done
-- [ ] Meets Acceptance  - [ ] `npm test` green  - [ ] `npm run build` clean / 0 TS errors
-- [ ] Degrades without `ANTHROPIC_API_KEY`  - [ ] Dashboard + summary table updated
+- [x] Meets Acceptance  - [x] `npm test` green (193)  - [x] `npm run build` clean / 0 TS errors
+- [x] Degrades without `ANTHROPIC_API_KEY` (deterministic order, verified live)
+- [x] Dashboard + summary table updated
 
 ---
 
@@ -721,6 +765,7 @@ profile (tech stack, experience, salary range).
 - **9 (guide)** ✅ markdown /guides section, gov.uk-checked content.
 - **6 (notifications)** ✅ reminder engine + /settings + browser alerts
   (email delivery ⏸️ needs `RESEND_API_KEY` + a scheduler).
-- **10 (AI matching)** — **next up**; drives engagement.
-- **8 (accounts/sync)** unlocks mobile and real multi-device use.
+- **10 (AI matching)** ✅ deterministic matcher + /matches view + salary check
+  (AI re-rank ⏸️ needs `ANTHROPIC_API_KEY`).
+- **8 (accounts/sync)** — **next up**; unlocks mobile and real multi-device use.
 - **7 (mobile)** is the longer-term investment.
