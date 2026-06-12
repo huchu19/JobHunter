@@ -10,6 +10,8 @@ import {
   type ApplicationFilters,
   type SortKey,
 } from "@/app/lib/applicationFilters";
+import { statusChangeNotification } from "@/app/lib/reminders";
+import { showNotification } from "@/app/lib/browserNotify";
 import KanbanBoard from "./KanbanBoard";
 import ApplicationList from "./ApplicationList";
 import DashboardFilters, { type ViewMode } from "./DashboardFilters";
@@ -35,6 +37,21 @@ export default function DashboardClient() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkUpdating, setBulkUpdating] = useState(false);
+
+  // Browser notifications on status change (opt-in via /settings).
+  const [browserNotify, setBrowserNotify] = useState(false);
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setBrowserNotify(!!data?.settings?.browserEnabled))
+      .catch(() => {});
+  }, []);
+
+  const notifyMove = (app: ApplicationDTO | undefined, newStatus: string) => {
+    if (!browserNotify || !app || app.status === newStatus) return;
+    const n = statusChangeNotification(app.company, app.role, newStatus);
+    if (n) showNotification(n.title, n.body);
+  };
 
   const loadApplications = async () => {
     try {
@@ -66,6 +83,7 @@ export default function DashboardClient() {
         app.id === id ? { ...app, status: newStatus } : app
       );
     });
+    notifyMove(snapshot.find((app) => app.id === id), newStatus);
 
     try {
       const res = await fetch(`/api/applications/${id}`, {

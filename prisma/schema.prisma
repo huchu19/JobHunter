@@ -75,6 +75,26 @@ model Activity {
   @@index([occurredAt])
 }
 
+// Single-row notification preferences (same singleton pattern as Profile).
+// Email settings are stored even when no email transport is configured —
+// delivery is env-gated behind RESEND_API_KEY and no-ops without it.
+model NotificationSettings {
+  id String @id @default("singleton")
+
+  // Email
+  emailEnabled      Boolean @default(false)
+  emailAddress      String?
+  weeklyDigest      Boolean @default(true)
+  followUpReminders Boolean @default(true)
+  interviewAlerts   Boolean @default(true)
+  offerCelebration  Boolean @default(true)
+
+  // Browser
+  browserEnabled Boolean @default(false)
+
+  updatedAt DateTime @updatedAt
+}
+
 // A researched company: created lazily the first time it is rated. Aggregated
 // ratings power the /companies/[name] research page. Name matches the
 // Application.company string (case-insensitive lookup is done in the route).

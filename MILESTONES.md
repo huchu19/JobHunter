@@ -28,14 +28,14 @@ of Done" in [AGENTS.md](AGENTS.md).
 | 4 | Analytics & Insights | ✅ Complete | Medium | — |
 | 4.5 | Flow Acceleration (bulk import, bulk status, extension save) | ✅ Complete | High | — |
 | 5 | Company Research & Ratings | ✅ Complete | Medium | — |
-| 6 | Smart Notifications | 🔄 Planned | Low | 1–2d |
+| 6 | Smart Notifications | ✅ Complete (email ⏸️ needs key) | Low | — |
 | 7 | Mobile App | 🔄 Planned | Low | 4–5d |
 | 8 | User Accounts & Sync | 🔄 Planned | Medium | 2–3d |
 | 9 | Visa Sponsorship Guide | ✅ Complete | Low | — |
 | 10 | Advanced Search & Matching | 🔄 Planned | Low | 2–3d |
 
-**Done:** 11 / 15  ·  **Next up:** Milestone 6 (Smart Notifications)
-**Recommended order:** ~~5~~ → ~~9~~ → 6 → 10 → 8 → 7
+**Done:** 12 / 15  ·  **Next up:** Milestone 10 (Advanced Search & Matching)
+**Recommended order:** ~~5~~ → ~~9~~ → ~~6~~ → 10 → 8 → 7
 
 > Per-milestone **Definition of Done** (repeated as a checklist in each section):
 > [ ] meets Acceptance · [ ] `npm test` green · [ ] `npm run build` clean / 0 TS
@@ -500,36 +500,74 @@ works, `/companies/[name]` renders 200. Test data cleaned up after.
 
 ---
 
-## 🔄 Milestone 6: Smart Notifications
+## ✅ Milestone 6: Smart Notifications
 
-**Status:** 🔄 Planned · 2026 · Priority: Low · Effort: 1–2d
+**Status:** ✅ Complete (email delivery ⏸️ blocked: needs `RESEND_API_KEY` +
+scheduler) · Shipped Jun 12, 2026 · Priority: Low
 
 Never miss a deadline or follow-up.
 
 ### What
-Weekly email digest; follow-up reminders; interview prep alert 24h before; offer
-celebration; browser notification on status change.
+Weekly email digest; follow-up reminders; deadline alerts (48h); interview prep
+alert 24h before; offer celebration; browser notification on status change.
 
 ### Implementation
-- Notification preferences in `/settings`.
-- Daily cron to check reminders.
-- Email via SendGrid or Resend.
-- `Notification.requestPermission()` for browser alerts.
+- `NotificationSettings` singleton model (Profile pattern) via `db push`;
+  `GET`/`PUT /api/settings` with allow-listed updates +
+  `emailConfigured` derived from the env.
+- **Pure reminder engine** `app/lib/reminders.ts` — `computeReminders`
+  (follow-up due/overdue, deadline ≤48h, interview ≤24h from `interviewAt`
+  or future-dated timeline activities, offer ≤24h celebration; closed
+  applications excluded; sorted by due time), `filterRemindersByPrefs`,
+  `buildWeeklyDigest` (reuses `computeDashboardStats`), `renderDigestText`,
+  and the pure `statusChangeNotification` copy builder. 17 tests.
+- `GET /api/notifications/reminders` — due-now list, pref-filtered.
+- `POST /api/notifications/run` — the daily-job entrypoint a scheduler hits:
+  computes reminders, emails when enabled+configured, always returns the
+  payload + `email: {attempted, sent, reason}` + a `preview` of what would
+  send. `{"digest": true}` sends the weekly digest instead.
+- **Email transport** `app/lib/email.ts` — env-gated no-op without
+  `RESEND_API_KEY` (per the AI-layering convention: never hard-fails); with a
+  key it posts to the Resend HTTP API directly (no SDK dependency).
+- **Browser notifications** — `app/lib/browserNotify.ts` (DOM-only wrappers;
+  message copy comes from the tested pure builder). `/settings` toggle runs
+  `Notification.requestPermission()` + test-notification button;
+  `DashboardClient` dispatches on stage moves (🎉 for offers) when enabled.
+- `/settings` page: email prefs (digest / follow-up+deadline / interview /
+  offer toggles + address), browser opt-in, and a live "Due right now"
+  preview from the reminders API. Sidebar Settings link.
 
 ### Tasks
-- [ ] `/settings` notification preferences
-- [ ] Daily reminder cron job
-- [ ] Email integration (SendGrid/Resend)
-- [ ] Browser notification opt-in + dispatch
+- [x] `/settings` notification preferences
+- [x] Daily reminder job — `POST /api/notifications/run` endpoint
+      (⏸️ blocked: actual scheduler/cron infra not provisioned; point any
+      daily cron at this endpoint)
+- [x] Email integration (Resend, env-gated)
+      (⏸️ blocked: real delivery needs `RESEND_API_KEY` — currently a
+      verified no-op that reports `sent:false` with the reason)
+- [x] Browser notification opt-in + dispatch
+      (in-browser permission grant + desktop alert needs a manual check)
 
-**Testing:** Application with follow-up 2 weeks out → run daily job → email sent;
-accept browser permission → desktop alert fires.
+**Testing:** `npm test` 174 passing (17 new: follow-up due/overdue/2-weeks-out
+spec scenario, closed-status exclusion, 48h deadline window incl. passed
+deadlines, interview ≤24h via both `interviewAt` and future activities, offer
+recency, dueAt ordering, pref filtering, digest stats + text rendering, status-
+change copy incl. null for dull moves). Live (Jun 12, 2026): settings
+GET/PUT round-trip; overdue-follow-up app → `GET /reminders` returns it
+(plus two *real* DWP deadlines from live data); `POST /run` → correct
+payload with `email: {attempted: true, sent: false, reason: "RESEND_API_KEY
+not configured"}`; `{"digest":true}` → rendered digest over 78 live
+applications; `/settings` renders 200. Test data cleaned up.
 
 **Acceptance:** Receive email/notification based on configured reminders.
+✅ for browser notifications + the full computation/preview pipeline;
+⏸️ email delivery blocked on a transport key + scheduler.
 
 ### Definition of Done
-- [ ] Meets Acceptance  - [ ] `npm test` green  - [ ] `npm run build` clean / 0 TS errors
-- [ ] Secrets via env, not committed  - [ ] Dashboard + summary table updated
+- [x] Meets Acceptance (modulo blocked email delivery, above)
+- [x] `npm test` green (174)  - [x] `npm run build` clean / 0 TS errors
+- [x] Secrets via env, not committed (no key invented; no-op verified)
+- [x] Dashboard + summary table updated
 
 ---
 
@@ -681,7 +719,8 @@ profile (tech stack, experience, salary range).
 - **4 (analytics)** ✅ funnel, weekly timeline, conversions, stage timings.
 - **5 (ratings)** ✅ company research page + community ratings + visa timeline.
 - **9 (guide)** ✅ markdown /guides section, gov.uk-checked content.
-- **6 (notifications)** — **next up**; reduces churn.
-- **10 (AI matching)** drives engagement.
+- **6 (notifications)** ✅ reminder engine + /settings + browser alerts
+  (email delivery ⏸️ needs `RESEND_API_KEY` + a scheduler).
+- **10 (AI matching)** — **next up**; drives engagement.
 - **8 (accounts/sync)** unlocks mobile and real multi-device use.
 - **7 (mobile)** is the longer-term investment.
