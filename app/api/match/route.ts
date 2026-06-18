@@ -4,128 +4,87 @@ import {
   extractProfileSignals,
   topSponsorMatches,
   compareSalary,
-  type SponsorMatch,
 } from "@/app/lib/sponsorMatcher";
-import { getAnthropic, ANTHROPIC_MODEL } from "@/app/lib/anthropic";
+import {
+  baseSources,
+  resolveSources,
+  fetchRolesForSources,
+} from "@/app/lib/gatherRoles";
+import { scoreRoles, rankEmployers } from "@/app/lib/roleMatcher";
+import type { FeedSource } from "@/app/lib/rolesFeed";
 
 /**
- * Top sponsors for the saved profile. Deterministic scoring
- * (`sponsorMatcher`, built on the techClassifier) is the always-available
- * base; when ANTHROPIC_API_KEY is set, Claude re-ranks the deterministic
- * shortlist and writes one-line "why" blurbs. Any AI failure falls back to
- * the deterministic order — the route never hard-fails on the key.
+ * Matches, reworked: instead of scoring 35k sponsor *names* (which surfaced
+ * tiny consultancies), we rank the **real open roles** the user can apply to,
+ * grouped into best-fit employers. Roles come from the careers feed (curated
+ * scale-up pool + tracked companies); when that yields too few strong matches,
+ * we expand on demand by resolving extra profile-shortlisted sponsors.
  */
 
 const LIMIT = 10;
-// Give the AI a wider shortlist to re-rank from.
-const SHORTLIST = 25;
-
-interface AiPick {
-  name: string;
-  why: string;
-}
-
-async function aiRerank(
-  matches: SponsorMatch[],
-  profileSummary: string
-): Promise<SponsorMatch[] | null> {
-  const anthropic = getAnthropic();
-  if (!anthropic || matches.length === 0) return null;
-
-  try {
-    const list = matches
-      .map((m, i) => `${i + 1}. ${m.sponsor.name} (signals: ${m.reasons.join("; ")})`)
-      .join("\n");
-
-    const response = await anthropic.messages.create({
-      model: ANTHROPIC_MODEL,
-      max_tokens: 1024,
-      messages: [
-        {
-          role: "user",
-          content: `A job seeker needs a UK Skilled Worker visa sponsor. Their profile: ${profileSummary}
-
-These licensed sponsors matched their profile by name-signal heuristics:
-${list}
-
-Pick the ${LIMIT} most promising for this candidate and order them best-first. Reply with JSON only: [{"name": "<exact name from the list>", "why": "<one short sentence>"}]`,
-        },
-      ],
-    });
-
-    const text = response.content
-      .map((b) => (b.type === "text" ? b.text : ""))
-      .join("");
-    const jsonStart = text.indexOf("[");
-    const jsonEnd = text.lastIndexOf("]");
-    if (jsonStart === -1 || jsonEnd === -1) return null;
-    const picks = JSON.parse(text.slice(jsonStart, jsonEnd + 1)) as AiPick[];
-
-    const byName = new Map(matches.map((m) => [m.sponsor.name.toLowerCase(), m]));
-    const reranked: SponsorMatch[] = [];
-    for (const pick of picks) {
-      const match = byName.get(String(pick.name).toLowerCase());
-      if (match) {
-        reranked.push({
-          ...match,
-          reasons: pick.why ? [pick.why, ...match.reasons] : match.reasons,
-        });
-      }
-    }
-    return reranked.length > 0 ? reranked.slice(0, LIMIT) : null;
-  } catch (error) {
-    console.error("AI re-rank failed, using deterministic order:", error);
-    return null;
-  }
-}
+const MIN_EMPLOYERS = 6; // expand if the feed alone gives fewer than this
+const EXPAND_RESOLVE = 8; // how many extra sponsors to resolve when expanding
 
 export async function GET() {
   try {
-    const [profile, applications, sponsors] = await Promise.all([
+    const [profile, applications] = await Promise.all([
       prisma.profile.findUnique({ where: { id: "singleton" } }),
-      prisma.application.findMany({
-        select: { company: true, salary: true },
-      }),
-      fetchDetailedSponsorsFromCache(),
+      prisma.application.findMany({ select: { company: true, salary: true } }),
     ]);
 
     const signals = extractProfileSignals(profile ?? {});
     const profileReady = signals.keywords.length > 0 || signals.isTechProfile;
+    const salary = compareSalary(
+      signals.salaryMin,
+      applications.map((a) => a.salary)
+    );
 
-    if (!profileReady || sponsors.length === 0) {
+    if (!profileReady) {
       return Response.json({
-        matches: [],
-        salary: compareSalary(signals.salaryMin, applications.map((a) => a.salary)),
-        profileReady,
-        sponsorsAvailable: sponsors.length > 0,
-        aiEnhanced: false,
+        employers: [],
+        salary,
+        profileReady: false,
+        expanded: false,
       });
     }
 
-    const exclude = new Set(applications.map((a) => a.company));
-    const shortlist = topSponsorMatches(signals, sponsors, {
-      limit: SHORTLIST,
-      exclude,
-    });
+    // 1. Base roles: curated pool + tracked companies.
+    const sources = await baseSources();
+    let roles = await fetchRolesForSources(sources);
+    let scored = scoreRoles(signals, roles);
+    let employers = rankEmployers(scored, { limit: LIMIT });
 
-    const profileSummary = [
-      profile?.currentTitle,
-      profile?.yearsExperience && `${profile.yearsExperience} yrs experience`,
-      profile?.skills && `skills: ${profile.skills}`,
-      profile?.salaryExpectation && `salary: ${profile.salaryExpectation}`,
-    ]
-      .filter(Boolean)
-      .join(" · ");
+    // 2. On-demand expansion: if the feed didn't surface enough strong-fit
+    //    employers, pull extra sponsors the deterministic matcher likes (that
+    //    aren't already covered), resolve them, and fetch their roles.
+    let expanded = false;
+    if (employers.length < MIN_EMPLOYERS) {
+      const have = new Set(sources.map((s) => s.name.toLowerCase()));
+      const sponsors = await fetchDetailedSponsorsFromCache().catch(() => []);
+      const extraNames = topSponsorMatches(signals, sponsors, { limit: 30 })
+        .map((m) => m.sponsor.name)
+        .filter((n) => !have.has(n.toLowerCase()))
+        .slice(0, EXPAND_RESOLVE);
 
-    const reranked = await aiRerank(shortlist, profileSummary);
-    const matches = (reranked ?? shortlist).slice(0, LIMIT);
+      if (extraNames.length > 0) {
+        const extraSources: FeedSource[] = await resolveSources(
+          extraNames,
+          false
+        );
+        if (extraSources.length > 0) {
+          roles = roles.concat(await fetchRolesForSources(extraSources));
+          scored = scoreRoles(signals, roles);
+          employers = rankEmployers(scored, { limit: LIMIT });
+          expanded = true;
+        }
+      }
+    }
 
     return Response.json({
-      matches,
-      salary: compareSalary(signals.salaryMin, applications.map((a) => a.salary)),
+      employers,
+      salary,
       profileReady: true,
-      sponsorsAvailable: true,
-      aiEnhanced: reranked !== null,
+      expanded,
     });
   } catch (error) {
     console.error("Error computing matches:", error);
