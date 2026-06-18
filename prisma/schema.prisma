@@ -110,6 +110,26 @@ model Company {
   createdAt DateTime @default(now())
 }
 
+// Cached resolution of a registered sponsor name → its real careers page.
+// The gov.uk register only gives a legal name (e.g. "MONZO BANK LIMITED") with
+// no website, so we resolve the actual careers/ATS URL once (deterministic
+// domain guess, enriched by an AI web search when ANTHROPIC_API_KEY is set) and
+// store it here. Negative results are cached too (status "unresolved") so we
+// never re-burn a web search on a company we already failed to find.
+model CompanyCareers {
+  id          String   @id @default(cuid())
+  name        String   @unique // registered name — the lookup key
+  careersUrl  String? // resolved careers / ATS listings URL
+  homepageUrl String? // resolved homepage (fallback)
+  atsType     String? // "greenhouse" | "lever" | "ashby" | "workday" | "smartrecruiters" | "other" | null
+  atsToken    String? // ATS board token/slug for the listings API (e.g. greenhouse board id)
+  confidence  String? // "high" | "low"
+  status      String   @default("ok") // "ok" | "unresolved"
+  resolvedAt  DateTime @default(now())
+
+  @@index([name])
+}
+
 // A single 1–5-star rating of a company in one category
 // ("work-culture" | "sponsorship" | "responsiveness"), with an optional
 // anonymous comment.
