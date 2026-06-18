@@ -12,6 +12,7 @@ import {
   FileUser,
   BarChart3,
   BookOpen,
+  Briefcase,
   Settings,
   Sparkles,
 } from "lucide-react";
@@ -28,6 +29,7 @@ const navLinks: NavLink[] = [
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/sponsors", label: "Find Sponsors", icon: Compass },
   { href: "/matches", label: "Matches", icon: Sparkles },
+  { href: "/roles", label: "Live Roles", icon: Briefcase },
   { href: "/guides", label: "Visa Guide", icon: BookOpen },
   { href: "/profile", label: "Application Profile", icon: FileUser },
   { href: "/settings", label: "Settings", icon: Settings },
@@ -52,11 +54,11 @@ export default function DashboardLayout({
         {/* Brand */}
         <div className="h-[72px] flex items-center px-4 border-b border-border">
           <div className="flex items-center gap-2.5 overflow-hidden">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-b from-brand to-brand-strong text-white shadow-[0_6px_16px_-6px_rgba(14,148,136,0.7)]">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand text-[color:var(--brand-contrast)] shadow-[var(--accent-glow)]">
               <Compass size={20} strokeWidth={2.25} />
             </span>
             {sidebarOpen && (
-              <span className="font-bold tracking-tight text-[15px] leading-tight whitespace-nowrap">
+              <span className="display text-[17px] font-semibold tracking-tight leading-tight whitespace-nowrap">
                 UK Sponsor Finder
               </span>
             )}
@@ -124,9 +126,11 @@ export default function DashboardLayout({
         </div>
       </aside>
 
-      {/* Main content */}
-      <main className="flex-1 overflow-auto">
-        <div className="h-full">{children}</div>
+      {/* Main content. min-w-0/min-h-0 let flex children (e.g. the fixed-height
+          dashboard + its internal-scroll board) constrain correctly; pages that
+          want to scroll do so in their own region. */}
+      <main className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+        <div className="h-full min-h-0">{children}</div>
       </main>
     </div>
   );

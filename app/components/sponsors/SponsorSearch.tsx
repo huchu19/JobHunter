@@ -12,6 +12,7 @@ import {
   Plus,
   ExternalLink,
   Cpu,
+  Loader2,
 } from "lucide-react";
 import { LONDON_AREA_INFO, NEAR_EC1V_AREAS } from "@/app/lib/londonAreas";
 import { linkedInJobsUrl, googleCareersUrl } from "@/app/lib/companyLinks";
@@ -35,6 +36,30 @@ export default function SponsorSearch() {
   const [techOnly, setTechOnly] = useState(false);
   const [nearEC1V, setNearEC1V] = useState(false);
   const [modalSponsor, setModalSponsor] = useState<Sponsor | null>(null);
+  // Company name currently being resolved to its real careers page (button busy).
+  const [resolvingCareers, setResolvingCareers] = useState<string | null>(null);
+
+  // Resolve the real careers page, then point a pre-opened tab at it. Opening
+  // the tab synchronously (before the await) keeps it from being popup-blocked;
+  // we fall back to a Google careers search if resolution fails.
+  const openCareers = async (company: string) => {
+    const tab = window.open("about:blank", "_blank", "noopener,noreferrer");
+    setResolvingCareers(company);
+    try {
+      const res = await fetch(
+        `/api/companies/${encodeURIComponent(company)}/careers`
+      );
+      const data = res.ok ? await res.json() : null;
+      const url: string = data?.careersUrl || googleCareersUrl(company);
+      if (tab) tab.location.href = url;
+      else window.open(url, "_blank", "noopener,noreferrer");
+    } catch {
+      const url = googleCareersUrl(company);
+      if (tab) tab.location.href = url;
+    } finally {
+      setResolvingCareers(null);
+    }
+  };
 
   useEffect(() => {
     const fetchSponsors = async () => {
@@ -293,14 +318,19 @@ export default function SponsorSearch() {
                       >
                         LinkedIn <ExternalLink size={11} />
                       </a>
-                      <a
-                        href={googleCareersUrl(sponsor.name)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hidden items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted transition hover:bg-surface-muted hover:text-foreground md:inline-flex"
+                      <button
+                        onClick={() => openCareers(sponsor.name)}
+                        disabled={resolvingCareers === sponsor.name}
+                        title="Find this company's real careers page"
+                        className="hidden items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted transition hover:bg-surface-muted hover:text-foreground disabled:opacity-60 md:inline-flex"
                       >
-                        Careers <ExternalLink size={11} />
-                      </a>
+                        Careers{" "}
+                        {resolvingCareers === sponsor.name ? (
+                          <Loader2 size={11} className="animate-spin" />
+                        ) : (
+                          <ExternalLink size={11} />
+                        )}
+                      </button>
                       <button
                         onClick={() => setModalSponsor(sponsor)}
                         className="btn-brand inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold"

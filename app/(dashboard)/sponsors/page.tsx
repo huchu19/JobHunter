@@ -1,33 +1,26 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { BookOpen } from "lucide-react";
+import PageHeader from "@/app/components/PageHeader";
 import SponsorSearch from "@/app/components/sponsors/SponsorSearch";
 
 export default function SponsorsPage() {
   return (
-    <div className="flex h-full flex-col">
-      <header className="border-b border-border bg-surface px-8 py-7">
-        <p className="text-xs font-semibold uppercase tracking-widest text-brand-strong">
-          Sponsor Finder
-        </p>
-        <h1 className="display mt-2 text-3xl text-foreground">
-          34,128 sponsors.{" "}
-          <span className="text-gradient-brand">One search bar.</span>
-        </h1>
-        <p className="mt-2 max-w-2xl text-[15px] text-muted">
-          Search every A-rated Skilled Worker sponsor with smart, fuzzy
-          filtering — by area, sector, or company name. Live from the gov.uk
-          register.
-        </p>
-        <Link
-          href="/guides"
-          className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-brand-strong hover:underline"
-        >
-          <BookOpen size={14} /> New to sponsorship? Read the visa guide
-        </Link>
-      </header>
+    <div className="flex h-full min-h-0 flex-col">
+      <PageHeader
+        title="Find Sponsors"
+        subtitle="34,128 A-rated Skilled Worker sponsors, live from the gov.uk register."
+        actions={
+          <Link
+            href="/guides"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-foreground transition hover:bg-surface-muted"
+          >
+            <BookOpen size={14} /> Visa guide
+          </Link>
+        }
+      />
 
-      <div className="flex-1 overflow-auto">
+      <div className="min-h-0 flex-1 overflow-auto">
         <div className="mx-auto max-w-7xl p-8">
           <Suspense
             fallback={

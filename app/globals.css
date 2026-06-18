@@ -1,11 +1,17 @@
 @import "tailwindcss";
 
 /*
- * UK Sponsor Finder — design system
- * Modern SaaS, teal/cyan accent on cool slate neutrals.
- * Light is the base; the .dark block below overrides the same tokens so the
- * entire token-driven UI flips with no per-component changes. The theme class
- * is set on <html> before paint by the inline script in app/layout.tsx.
+ * UK Sponsor Finder — design system · "Functional"
+ *
+ * This is a utility, not a magazine. Clean grotesque throughout (no serif),
+ * neutral grey surfaces, ONE indigo accent reserved for intent (CTAs, active
+ * nav, links, focus, the LIVE pulse). Tabular mono for figures. The look is
+ * Linear/Vercel/gov.uk-register: plain, fast, trusted — never decorative.
+ *
+ * Light is the base; the .dark block mirrors the same tokens for the dark
+ * variant, so the whole token-driven UI flips with no per-component changes.
+ * The theme class is set on <html> before paint by the inline script in
+ * app/layout.tsx.
  */
 
 /* Drive Tailwind's `dark:` variant off a manual class instead of the OS query,
@@ -13,75 +19,81 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  /* Surfaces */
-  --background: #f6f9fa;
+  /* ---- LIGHT — neutral greys, near-black ink, indigo accent ---- */
+
+  /* Surfaces — clean off-white, no warm/cool tint */
+  --background: #f7f7f6;
   --surface: #ffffff;
-  --surface-muted: #f1f5f6;
+  --surface-muted: #f1f1f0;
 
-  /* Text */
-  --foreground: #0b1f2a;
-  --muted: #5b7682;
-  --muted-2: #8aa1ab;
+  /* Text — neutral near-black */
+  --foreground: #18181a;
+  --muted: #5c5c5f;
+  --muted-2: #8a8a8d;
 
-  /* Brand — teal/cyan */
-  --brand: #12b3a6;
-  --brand-strong: #0e9488;
-  --brand-soft: #d8f3ef;
+  /* Brand — indigo, the single accent */
+  --brand: #5b5bd6;
+  --brand-strong: #4f4fc9;
+  --brand-soft: #ececfb;
   --brand-contrast: #ffffff;
 
-  /* Dark hero / panels */
-  --ink: #07212e;
-  --ink-2: #0c2c3c;
+  /* Dark hero / panels — neutral ink so light surfaces have an anchor */
+  --ink: #161618;
+  --ink-2: #202023;
 
   /* Lines & states */
-  --border: #e2e9ec;
-  --ring: #12b3a6;
-  --success: #0f9d6b;
-  --warning: #c9870a;
-  --danger: #e1483b;
+  --border: #e4e4e3;
+  --ring: #5b5bd6;
+  --success: #1f9d57;
+  --warning: #b5740b;
+  --danger: #d8453a;
 
-  --radius: 0.875rem;
-  --shadow-sm: 0 1px 2px rgba(11, 31, 42, 0.05);
-  --shadow: 0 4px 16px -4px rgba(11, 31, 42, 0.10);
-  --shadow-lg: 0 18px 48px -12px rgba(11, 31, 42, 0.22);
+  --radius: 0.625rem;
+  --shadow-sm: 0 1px 2px rgba(24, 24, 26, 0.05);
+  --shadow: 0 4px 14px -6px rgba(24, 24, 26, 0.12);
+  --shadow-lg: 0 18px 44px -16px rgba(24, 24, 26, 0.22);
+
+  /* Accent emphasis — a subtle lift on the primary CTA, no glow/decoration */
+  --accent-glow: 0 4px 12px -4px rgba(91, 91, 214, 0.35);
 }
 
 /*
- * Dark theme — same token names, deep cool-slate surfaces. Applied when <html>
- * carries the `dark` class (set by the toggle / system preference). The kanban
- * `.panel-ink` already renders dark, so it needs no overrides here.
+ * DARK theme — neutral near-black, off-white ink, indigo lifted for the dark
+ * base. Applied when <html> carries the `dark` class.
  */
 .dark {
-  /* Surfaces */
-  --background: #07151c;
-  --surface: #0d2531;
-  --surface-muted: #122e3b;
+  /* Surfaces — neutral near-black, raised panels a step up */
+  --background: #0e0e12;
+  --surface: #16161b;
+  --surface-muted: #1d1d23;
 
-  /* Text */
-  --foreground: #e7f1f4;
-  --muted: #9fb4bd;
-  --muted-2: #6d8893;
+  /* Text — neutral off-white */
+  --foreground: #e8e7ea;
+  --muted: #9b9aa0;
+  --muted-2: #65646b;
 
-  /* Brand — slightly lifted so it reads on dark surfaces */
-  --brand: #1ec8ba;
-  --brand-strong: #15b0a3;
-  --brand-soft: #103e3c;
-  --brand-contrast: #04161b;
+  /* Brand — indigo, brighter for the dark base */
+  --brand: #7b7bf0;
+  --brand-strong: #6a6ae8;
+  --brand-soft: #232248;
+  --brand-contrast: #0e0e12;
 
-  /* Dark hero / panels — keep the deep ink, nudge for contrast on dark bg */
-  --ink: #04141c;
-  --ink-2: #0a2330;
+  /* Dark hero / panels — deeper than the page so they read as a slab */
+  --ink: #0a0a0d;
+  --ink-2: #131319;
 
   /* Lines & states */
-  --border: #1d3a47;
-  --ring: #1ec8ba;
-  --success: #2bbd86;
+  --border: #2a2a31;
+  --ring: #7b7bf0;
+  --success: #3fb978;
   --warning: #e0a23a;
-  --danger: #f06a5d;
+  --danger: #e2675a;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 18px 48px -12px rgba(0, 0, 0, 0.65);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 24px 56px -18px rgba(0, 0, 0, 0.72);
+
+  --accent-glow: 0 6px 16px -6px rgba(123, 123, 240, 0.4);
 }
 
 @theme inline {
@@ -104,8 +116,10 @@
   --color-warning: var(--warning);
   --color-danger: var(--danger);
 
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  /* One clean grotesque for everything. Mono for figures. No serif. */
+  --font-sans: var(--font-sans-base), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-sans-base), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono-base), ui-monospace, monospace;
 
   --radius-card: var(--radius);
 }
@@ -130,18 +144,33 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Display headings — tight, two-tone like the marketing hero */
+/* Display headings — same grotesque, just tight + heavy. Plain, not decorative. */
 .display {
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.02;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
 }
 
+/* Tabular figures — use on stats, counts, salary, deadlines for alignment. */
+.figure {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  letter-spacing: -0.01em;
+}
+
+/* Small-caps eyebrow label. */
+.eyebrow {
+  font-weight: 600;
+  font-size: 0.6875rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Hero accent — solid indigo, no gradient. The accent IS the emphasis. */
 .text-gradient-brand {
-  background: linear-gradient(92deg, var(--brand) 0%, #2bd4c0 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--brand);
 }
 
 /* Reusable surface card */
@@ -152,31 +181,40 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
-/* Dark panel (kanban / hero blocks) */
+/* Dark panel (kanban / hero blocks) — a flat neutral slab, hairline edge. */
 .panel-ink {
-  background:
-    radial-gradient(120% 120% at 0% 0%, #103342 0%, transparent 55%),
-    linear-gradient(180deg, var(--ink-2) 0%, var(--ink) 100%);
-  color: #e6f1f4;
+  background: linear-gradient(180deg, var(--ink-2) 0%, var(--ink) 100%);
+  color: #e8e7ea;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* Brand button */
+/* Brand button — solid indigo, white text. Flat, functional, one accent. */
 .btn-brand {
-  background: linear-gradient(180deg, var(--brand) 0%, var(--brand-strong) 100%);
+  background: var(--brand);
   color: var(--brand-contrast);
-  box-shadow: 0 6px 16px -6px rgba(14, 148, 136, 0.6);
+  font-weight: 600;
+  box-shadow: var(--accent-glow);
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
 .btn-brand:hover {
-  filter: brightness(1.05);
+  background: var(--brand-strong);
 }
 
 /* Scrollbars in panels */
 .thin-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
 .thin-scroll::-webkit-scrollbar-thumb {
-  background: rgba(91, 118, 130, 0.35);
+  background: rgba(140, 140, 145, 0.3);
   border-radius: 999px;
+}
+.thin-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(140, 140, 145, 0.45);
 }
 .thin-scroll::-webkit-scrollbar-track { background: transparent; }
 
 input::placeholder,
 textarea::placeholder { color: var(--muted-2); }
+
+::selection {
+  background: rgba(91, 91, 214, 0.22);
+  color: var(--foreground);
+}

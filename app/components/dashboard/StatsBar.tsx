@@ -1,14 +1,3 @@
-import {
-  ClipboardList,
-  Send,
-  Target,
-  PartyPopper,
-  MessageCircleReply,
-  Ghost,
-  CalendarClock,
-  Bell,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import prisma from "@/app/lib/db";
 import {
   computeDashboardStats,
@@ -33,26 +22,26 @@ async function getApplications(): Promise<StatApplication[]> {
   }
 }
 
-interface StatCard {
+interface Metric {
   label: string;
   value: string | number;
-  icon: LucideIcon;
-  hint?: string;
+  /** Optional accent on the value (used to draw the eye to time-sensitive items). */
+  accent?: "default" | "warning";
 }
 
-function StatCardComponent({ label, value, icon: Icon, hint }: StatCard) {
+function MetricItem({ label, value, accent = "default" }: Metric) {
   return (
-    <div className="card p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-muted">{label}</p>
-          <p className="display mt-2 text-3xl text-foreground">{value}</p>
-          {hint && <p className="mt-1 text-xs text-muted-2">{hint}</p>}
-        </div>
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand-strong">
-          <Icon size={20} strokeWidth={2.2} />
-        </span>
-      </div>
+    <div className="flex shrink-0 flex-col gap-0.5 px-5 first:pl-0">
+      <span className="text-[11px] font-medium uppercase tracking-wide text-muted-2">
+        {label}
+      </span>
+      <span
+        className={`figure text-xl font-semibold tabular-nums ${
+          accent === "warning" ? "text-warning" : "text-foreground"
+        }`}
+      >
+        {value}
+      </span>
     </div>
   );
 }
@@ -61,47 +50,35 @@ export default async function StatsBar() {
   const applications = await getApplications();
   const stats = computeDashboardStats(applications);
 
-  const cards: StatCard[] = [
-    { label: "Total tracked", value: stats.total, icon: ClipboardList },
-    { label: "Applied this week", value: stats.appliedThisWeek, icon: Send },
+  // Slim single-row strip. Time-sensitive metrics (deadlines / follow-ups) get a
+  // warning accent only when there's actually something due, so the eye is drawn
+  // to what needs action rather than to a wall of zeros.
+  const metrics: Metric[] = [
+    { label: "Tracked", value: stats.total },
+    { label: "Applied / wk", value: stats.appliedThisWeek },
+    { label: "Interview rate", value: `${stats.interviewRate}%` },
+    { label: "Response", value: `${stats.responseRate}%` },
+    { label: "Offers", value: stats.offers },
+    { label: "Ghosted", value: stats.ghosted },
     {
-      label: "Interview rate",
-      value: `${stats.interviewRate}%`,
-      icon: Target,
-      hint: "of applied jobs",
-    },
-    { label: "Offers", value: stats.offers, icon: PartyPopper },
-    {
-      label: "Response rate",
-      value: `${stats.responseRate}%`,
-      icon: MessageCircleReply,
-      hint: "heard back (incl. rejections)",
-    },
-    {
-      label: "Ghosted",
-      value: stats.ghosted,
-      icon: Ghost,
-      hint: "21+ days, no reply",
-    },
-    {
-      label: "Deadlines soon",
+      label: "Deadlines · 7d",
       value: stats.upcomingDeadlines,
-      icon: CalendarClock,
-      hint: "next 7 days",
+      accent: stats.upcomingDeadlines > 0 ? "warning" : "default",
     },
     {
-      label: "Follow-ups due",
+      label: "Follow-ups · 7d",
       value: stats.upcomingFollowUps,
-      icon: Bell,
-      hint: "next 7 days",
+      accent: stats.upcomingFollowUps > 0 ? "warning" : "default",
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-      {cards.map((card) => (
-        <StatCardComponent key={card.label} {...card} />
-      ))}
+    <div className="shrink-0 border-b border-border bg-surface">
+      <div className="thin-scroll flex items-center divide-x divide-border overflow-x-auto px-8 py-3">
+        {metrics.map((m) => (
+          <MetricItem key={m.label} {...m} />
+        ))}
+      </div>
     </div>
   );
 }

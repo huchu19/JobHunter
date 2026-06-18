@@ -171,9 +171,9 @@ export default function DashboardClient() {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 px-8 pt-4">
       {/* Toolbar */}
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex shrink-0 items-center justify-between gap-3">
         <DashboardFilters
           filters={filters}
           onFiltersChange={setFilters}
@@ -257,33 +257,39 @@ export default function DashboardClient() {
         </div>
       )}
 
-      {loading ? (
-        <div className="rounded-card border border-border bg-surface py-12 text-center text-muted">
-          Loading applications…
-        </div>
-      ) : error ? (
-        <div className="rounded-card border border-danger/30 bg-danger/5 py-12 text-center font-medium text-danger">
-          Error: {error}
-        </div>
-      ) : view === "board" ? (
-        <KanbanBoard
-          applications={visible}
-          onMove={handleMove}
-          onDelete={handleDelete}
-          onOpen={setDetailId}
-          selectMode={selectMode}
-          selectedIds={selectedIds}
-          onSelect={toggleSelect}
-        />
-      ) : (
-        <ApplicationList
-          applications={visible}
-          onOpen={setDetailId}
-          selectMode={selectMode}
-          selectedIds={selectedIds}
-          onSelect={toggleSelect}
-        />
-      )}
+      {/* Board / list region — fills the rest of the viewport and owns its own
+          scroll, so the page chrome above stays put. */}
+      <div className="min-h-0 flex-1 pb-6">
+        {loading ? (
+          <div className="rounded-card border border-border bg-surface py-12 text-center text-muted">
+            Loading applications…
+          </div>
+        ) : error ? (
+          <div className="rounded-card border border-danger/30 bg-danger/5 py-12 text-center font-medium text-danger">
+            Error: {error}
+          </div>
+        ) : view === "board" ? (
+          <KanbanBoard
+            applications={visible}
+            onMove={handleMove}
+            onDelete={handleDelete}
+            onOpen={setDetailId}
+            selectMode={selectMode}
+            selectedIds={selectedIds}
+            onSelect={toggleSelect}
+          />
+        ) : (
+          <div className="h-full overflow-y-auto thin-scroll">
+            <ApplicationList
+              applications={visible}
+              onOpen={setDetailId}
+              selectMode={selectMode}
+              selectedIds={selectedIds}
+              onSelect={toggleSelect}
+            />
+          </div>
+        )}
+      </div>
 
       <AddJobModal
         isOpen={addOpen}

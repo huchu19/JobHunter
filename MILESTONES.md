@@ -33,9 +33,13 @@ of Done" in [AGENTS.md](AGENTS.md).
 | 8 | User Accounts & Sync | 🔄 Planned | Medium | 2–3d |
 | 9 | Visa Sponsorship Guide | ✅ Complete | Low | — |
 | 10 | Advanced Search & Matching | ✅ Complete (AI/email ⏸️ need keys) | Low | — |
+| 10.5 | Careers Resolution & In-App Listings | ✅ Complete (AI via `GEMINI_API_KEY`) | High | — |
+| 10.6 | Live Roles Feed & Save-to-Board | ✅ Complete | High | — |
+| 10.7 | Role-Based Matching (employers ranked by live roles) | ✅ Complete | High | — |
+| 11 | Visual Redesign — "Functional" theme (Linear-style) | ✅ Complete | Medium | — |
 
-**Done:** 13 / 15  ·  **Next up:** Milestone 8 (User Accounts & Sync)
-**Recommended order:** ~~5~~ → ~~9~~ → ~~6~~ → ~~10~~ → 8 → 7
+**Done:** 17 / 19  ·  **Next up:** Milestone 8 (User Accounts & Sync)
+**Recommended order:** ~~5~~ → ~~9~~ → ~~6~~ → ~~10~~ → ~~10.5~~ → ~~10.6~~ → ~~10.7~~ → 8 → 7
 
 > Per-milestone **Definition of Done** (repeated as a checklist in each section):
 > [ ] meets Acceptance · [ ] `npm test` green · [ ] `npm run build` clean / 0 TS
@@ -753,6 +757,319 @@ path; AI re-rank pending a key)
 
 ---
 
+## ✅ Milestone 10.5: Careers Resolution & In-App Listings
+
+**Status:** ✅ Complete (AI web-search layer ⏸️ blocked: needs `GEMINI_API_KEY`)
+· Shipped Jun 17, 2026 · Priority: High
+
+Turn the "Careers" button from a Google search into a one-click jump to the
+company's **real** careers page — and show its **open roles in-app**. The gov.uk
+register only gives a registered legal name (no website column), so we resolve
+the actual careers/ATS URL once and cache it.
+
+### What
+- **Careers resolution** — a registered sponsor name (e.g. "MONZO BANK LIMITED")
+  → its real careers/ATS URL, via a deterministic domain probe (clean the legal
+  name → guess `monzo.com`/`.co.uk`/`.io`/`.ai` → probe which resolves → look for
+  `/careers`/`/jobs` and detect Greenhouse/Lever/Ashby/Workday/SmartRecruiters),
+  enriched by an **AI web search** (Google **Gemini** with Google-Search
+  grounding) for brand≠legal cases the guesser misses (e.g. ByteDance → TikTok).
+  Results — positive **and** negative — are persisted so each company resolves
+  once.
+- **In-app listings** — when an ATS is identified, the open roles are pulled from
+  that ATS's **public JSON API** (no keys, no scraping) and shown inline:
+  Greenhouse (`boards-api.greenhouse.io`), Lever (`api.lever.co`), Ashby, and
+  Workday (CXS endpoint, shared with the URL-import Workday logic). Unknown ATS →
+  a "View careers site" link fallback (resolved URL, else a Google search).
+- **UI** — `/matches` rows get a "View roles" toggle that expands a live-roles
+  panel; the sponsor Browse "Careers" button now opens the **resolved** site; the
+  company research page gains an "Open roles" panel + an "Official careers page"
+  link.
+
+### Implementation
+- `prisma/schema.prisma`: `CompanyCareers` model (`@unique` name, careers/homepage
+  URLs, `atsType`/`atsToken`, `confidence`, `status` incl. cached `"unresolved"`),
+  applied via `prisma db push` (this repo uses push, not migrate).
+- **Pure, unit-tested libs:**
+  - `app/lib/careersResolver.ts` — `brandSlug`, `candidateDomains`, `detectAts`,
+    and the deterministic↔AI `mergeResolution` (AI overrides only when present,
+    never clobbers a resolved guess — same rule as `parse-url`); plus the
+    network `probeCandidates`.
+  - **ATS-discovery upgrade (Jun 17):** `probeCandidates` now tries a
+    **verified ATS-board probe first** — `probeAtsBoards`/`atsTokenCandidates`
+    probe Greenhouse/Lever/Ashby boards for the brand slug and keep the first
+    that *actually returns open roles* (`countAtsJobs`), so the common
+    name=board-token case (Monzo→greenhouse/monzo, Deliveroo→ashby/deliveroo,
+    Cleo→greenhouse/cleo) resolves to a **live feed with zero AI cost** and the
+    Gemini call is skipped entirely. The sharpened Gemini prompt targets the ATS
+    board token, and any AI-supplied token is **verified** before trust — an
+    empty/404 board strips the ATS fields so the UI never shows a dead "live
+    roles" feed (Wise→custom ATS correctly falls back to a link). Injectable
+    verifier keeps it all unit-testable without live HTTP.
+  - `app/lib/atsListings.ts` — per-ATS endpoint builders + response normalisers
+    into a shared `Listing` shape, and a `fetchListings` dispatcher. Workday's
+    CXS transform lives here (shared with `parse-url`).
+- `app/lib/resolveCareers.ts` — server orchestration (DB cache → probe → AI web
+  search → persist) shared by both routes; AI guarded by `geminiGenerateUrl()`
+  (`app/lib/gemini.ts`), calls the **Gemini** `generateContent` REST endpoint
+  with the `google_search` grounding tool via plain `fetch` (no SDK — same style
+  as `email.ts`/Resend), extracts the JSON answer leniently (`gemini-2.5-flash`
+  default, `GEMINI_MODEL`-overridable), falls back to the guess on any failure —
+  never hard-fails on a missing key. **Provider-isolated:** only `aiResolve()`
+  knows about Gemini; `mergeResolution`, the cache, routes, and UI are
+  provider-agnostic, so swapping providers touches one function.
+- API: `GET /api/companies/[name]/careers` (resolution + `?refresh=1`) and
+  `GET /api/companies/[name]/listings` (resolution → live roles + fallback link).
+- Components: `app/components/companies/CareersListings.tsx` (fetch-on-mount
+  panel, used inline in Matches and on the research page); `MatchesClient`,
+  `SponsorSearch`, and the company research page wired in. `companyLinks`
+  (`googleCareersUrl`/`linkedInJobsUrl`) kept as the always-available fallback.
+
+### Tasks
+- [x] `CompanyCareers` model + `db push`
+- [x] Deterministic resolver (name clean → candidate domains → probe → ATS detect)
+- [x] AI web-search resolution layer (Gemini + Google-Search grounding, lenient
+      JSON extraction, graceful fallback) — ⏸️ live AI quality unverified (no
+      `GEMINI_API_KEY` in env yet)
+- [x] Public-ATS listings fetch + normalise (Greenhouse/Lever/Ashby/Workday)
+- [x] `/careers` + `/listings` routes with DB caching
+- [x] `CareersListings` panel; wire Matches + sponsor Browse + research page
+
+**Testing:** `npm test` 224 passing (31 new: name normalisation → candidate
+domains, ATS detection across providers, deterministic↔AI merge incl. "never
+clobber a resolved guess" + unresolved marking; ATS endpoint builders + JSON
+normalisers incl. empty/malformed safety; **ATS-board slug probing** with an
+injected verifier — token candidates, board-URL builders, first-with-roles
+selection, and `probeCandidates` short-circuiting to a verified board before any
+homepage probe). `npm run build` clean / 0 TS errors.
+Live (Jun 17, 2026, **no `GEMINI_API_KEY` in env** so the deterministic path ran;
+re-verified after the Gemini port — key-absent cleanly skips the API call, no
+errors, same deterministic result):
+`GET /companies/Monzo/careers` → `monzo.com/careers`, `confidence:"high"`,
+`status:"ok"`, `aiAssisted:false`, persisted then served from cache on the next
+call; Deliveroo + Starling likewise resolved by the guesser; with a seeded
+Greenhouse token, `GET /companies/Monzo/listings` returned 12 normalised live
+roles (`fromAts:true`) with working deep links; unknown-ATS → careers-link
+fallback (`fromAts:false`, no 500). Schema-change dev-server restart applied
+(stale Prisma client had thrown `companyCareers.findMany`). Test data cleaned up.
+
+**Acceptance:** The Careers button reaches the company's real careers page, and
+open roles are viewable in-app where the ATS exposes them. ✅ (deterministic +
+ATS-listings paths verified live; AI web-search resolution of hard brand≠legal
+cases pending a `GEMINI_API_KEY`).
+
+### Definition of Done
+- [x] Meets Acceptance (modulo blocked AI web search, above)
+- [x] `npm test` green (224)  - [x] `npm run build` clean / 0 TS errors
+- [x] Degrades without `GEMINI_API_KEY` (deterministic probe + ATS listings,
+      verified live)  - [x] Schema change applied (`db push`)
+- [x] Dashboard + summary table updated
+
+---
+
+## ✅ Milestone 10.6: Live Roles Feed & Save-to-Board
+
+**Status:** ✅ Complete · Shipped Jun 17, 2026 · Priority: High
+
+A dedicated **/roles** page that aggregates live open roles from UK
+visa-sponsoring companies into one searchable feed, with one-click **Save to
+board**. Built because the profile matcher surfaces name-keyword matches (tiny
+"X Software Technologies Ltd" consultancies) that have no public job feed — so
+"View roles" on /matches usually had nothing to show. This page draws from
+companies that *do* have feeds, so there are always real, applyable roles.
+
+### What
+- **/roles page** — live openings pulled straight from sponsor careers boards,
+  searchable (role / company / location) with per-company filter chips, each role
+  deep-linking to the posting and a **Save** button that drops it into the
+  Wishlist. Tracked companies are flagged and sorted first.
+- **Curated pool** — `app/lib/rolesPool.ts`: 30 UK visa-sponsoring scale-ups with
+  **verified public ATS boards** (Greenhouse/Lever/Ashby — tokens confirmed live
+  to return roles: Monzo, Deliveroo, Cloudflare, GraphCore, Tide, Palantir,
+  Octopus Energy, Synthesia, Lendable, …). These fetch straight from the ATS JSON
+  APIs — no domain probe, no Gemini, no latency.
+- **Tracked companies merged in** — the user's own board companies are resolved
+  (cached) and any with a usable ATS feed are folded into the feed alongside the
+  pool, deduped by ATS board.
+
+### Implementation
+- `app/lib/rolesFeed.ts` — pure, unit-tested aggregation: `mapPool` (bounded
+  concurrency), `buildSources` (pool + tracked dedupe), `assembleFeed` (tag roles
+  with company, tracked-first sort, per-company cap). 9 tests.
+- `app/lib/atsListings.ts` — reused `fetchListings`; `countAtsJobs` (from M10.5)
+  underpins the pool verification.
+- `GET /api/roles/feed` — fetches the pool + resolved tracked companies with
+  bounded concurrency, assembles, and caches the result in-memory (5-min TTL) so
+  repeat visits are instant (`?refresh=1` to force). Never 500s (empty feed on
+  error).
+- `app/(dashboard)/roles/page.tsx` + `app/components/roles/RolesFeed.tsx` (search,
+  filter chips, **Save to board** → `POST /api/applications` with
+  `source: "roles-feed"`). Sidebar **Live Roles** link (`Briefcase`).
+- `app/types/careers.ts` — `FeedRole` / `RolesFeedResult`.
+
+### Tasks
+- [x] Verified curated ATS-board pool (`rolesPool.ts`)
+- [x] Aggregation lib (`rolesFeed.ts`) + tests
+- [x] `GET /api/roles/feed` (pool + tracked, bounded concurrency, cached)
+- [x] `/roles` page + `RolesFeed` (search / filter / save-to-board)
+- [x] Sidebar link
+
+**Testing:** `npm test` 233 passing (9 new: `mapPool` ordering + concurrency cap +
+empty; `buildSources` pool-only / tracked-overlap-dedupe / tracked-new;
+`assembleFeed` tagging + tracked-first sort + per-company cap + empty safety; pool
+integrity — no dup boards, known ATS types only). `npm run build` clean / 0 TS
+errors. Live (Jun 17, 2026): `GET /api/roles/feed` → **225 live roles across 31
+companies** (curated pool + two tracked companies, "mthree"/"Marshall Wace",
+merged with the `tracked` flag); 2nd call served from cache in 7ms; **Save to
+board** POSTed a GraphCore role → Wishlist application created with
+`source:"roles-feed"`; test row cleaned up.
+
+**Acceptance:** A roles page shows real open roles from sponsoring companies, is
+searchable/filterable, and saves roles straight to the tracker. ✅
+
+### Definition of Done
+- [x] Meets Acceptance  - [x] `npm test` green (233)  - [x] `npm run build` clean / 0 TS errors
+- [x] No new dependency  - [x] No schema change (reuses Application + CompanyCareers)
+- [x] Dashboard + summary table updated
+
+---
+
+## ✅ Milestone 10.7: Role-Based Matching
+
+**Status:** ✅ Complete · Shipped Jun 17, 2026 · Priority: High
+
+Reworked **Matches** from "score 35k sponsor *names*" (which surfaced tiny
+"X Software Technologies Ltd" consultancies with no jobs) to "rank the **real
+open roles** you can apply to, grouped into best-fit employers." This makes the
+page genuinely useful and ties it to the M10.6 roles feed.
+
+### What
+- **Matches = best-fit employers hiring now** — employers ranked by the strength
+  and count of their currently-open roles that match your profile, each
+  expandable to its matching roles (title + location + reasons), every role with
+  a one-click **Save**. Tracked companies surface first.
+- **Roles, not names** — a role *title* ("Machine Learning Engineer") is a far
+  stronger signal than a company name; scoring rewards specific multi-word skill
+  hits in the title, generic tech-role fit, early-career cues, and London/UK
+  location.
+- **On-demand expansion** — roles come from the M10.6 feed (curated pool +
+  tracked companies); if that yields fewer than 6 strong-fit employers, the route
+  resolves extra profile-shortlisted sponsors (via the cached resolver) and pulls
+  their roles too.
+
+### Implementation
+- `app/lib/roleMatcher.ts` (pure, tested) — `scoreRole` (specificity-weighted
+  title-keyword hits + tech-role + early-career + location), `scoreRoles`
+  (filter + best-first), `rankEmployers` (sum role scores per company,
+  tracked-first sort, per-employer role cap). Reuses `ProfileSignals` from
+  `sponsorMatcher`.
+- `app/lib/gatherRoles.ts` — shared server gathering pulled out of the feed
+  route: `baseSources` (pool + tracked), `resolveSources` (resolve names → ATS
+  feed sources), `fetchRolesForSources`. Used by both `/api/roles/feed` and
+  `/api/match`.
+- `GET /api/match` rewritten — returns `{employers, salary, profileReady,
+  expanded}`; deterministic, no AI/Anthropic dependency (role scoring is concrete
+  enough). `POST /api/match/run` (digest) untouched — it kept its own sponsor
+  logic.
+- `MatchesClient` rewritten — expandable employer cards + per-role Save
+  (`source:"matches"`); keeps the salary-check panel; empty state links to
+  `/profile` and `/roles`.
+
+### Tasks
+- [x] `roleMatcher.ts` (score roles → rank employers) + tests
+- [x] Shared `gatherRoles.ts`; refactor feed route to use it
+- [x] Rework `/api/match` to role-based employers + on-demand expansion
+- [x] Rework `MatchesClient` (expandable employers + save)
+
+**Testing:** `npm test` 243 passing (10 new: title keyword-hit weighting incl.
+multi-word > broad-word, generic tech-role credit, early-career + location
+signals, non-tech ~0; `scoreRoles` filter/sort; `rankEmployers` per-company
+summing, tracked-first tie-break, role cap + employer limit, empty safety).
+`npm run build` clean / 0 TS errors. Live (Jun 17, 2026, real profile): `GET
+/api/match` → 10 employers ranked by live roles — GraphCore (AI Research/
+Performance Engineer, tracked), mthree (C++ grad, tracked), GoCardless/Lendable/
+Marshmallow (Data Scientist/Analyst roles) — each with matching roles + reasons,
+`expanded:false` (feed alone sufficed); Save from a match created a Wishlist
+application with `source:"matches"`. (Compare the old output: ATEZ/Aybola/
+Datazone consultancies with no roles.)
+
+**Acceptance:** Matches ranks employers by the real roles you can apply to, not
+company-name keywords. ✅
+
+### Definition of Done
+- [x] Meets Acceptance  - [x] `npm test` green (243)  - [x] `npm run build` clean / 0 TS errors
+- [x] No new dependency; deterministic (no AI key needed)  - [x] No schema change
+- [x] Dashboard + summary table updated
+
+---
+
+## ✅ Milestone 11: Visual Redesign — "Functional" theme (Linear-style)
+
+**Status:** ✅ Complete · Shipped Jun 18, 2026 · Priority: Medium
+
+The old theme (Geist font + teal-on-mint "modern SaaS" palette + gradient-on-
+everything) read as generic AI-template output. Replaced it with an intentional
+system that fits the product: a **utility, not a magazine**. Direction:
+**Functional** (Linear / Vercel / gov.uk-register) — neutral grey surfaces, a
+clean humanist grotesque throughout (no serif), a single **indigo** accent
+reserved for intent (CTAs, active nav, links, focus, the LIVE pulse), tabular mono
+for figures, flat decoration (no gradients/glows).
+
+> Note: an earlier pass tried "Refined Dark Slate" (serif + amber/gold); it read
+> too preppy/editorial for a service tool, so the accent moved to indigo and the
+> serif was dropped. Same two-file, token-driven change.
+
+### Navigation & IA pass (same milestone)
+The redesign also fixed the dashboard's "scrolling forever" problem and unified
+page chrome:
+- **Board-first dashboard:** killed the tall marketing hero; the page is now a
+  fixed-height shell (compact header + slim metric strip + filters fixed) with the
+  Kanban filling the remaining viewport and owning its own scroll — no more
+  double-scroll. `StatsBar` went from 8 big tiles to a one-row mono metric strip.
+- **Kanban columns:** full-height with sticky count headers, **collapse-to-rail**
+  per column (still a drop target), and a **jump-to-bottom / back-to-top**
+  affordance that appears only when a column overflows.
+- **Shared `PageHeader`:** Dashboard / Find Sponsors / Matches / Live Roles all use
+  one compact header (title + one-line subtitle + optional actions), replacing the
+  oversized eyebrow+two-tone-headline+blurb heroes.
+- **Landing page:** `/` was the Next.js starter placeholder; replaced with a real
+  marketing landing (hero + faux-board preview, feature grid, how-it-works, CTA,
+  gov.uk-credited footer) in the Functional theme. No sidebar (it's outside the
+  `(dashboard)` group).
+
+### What
+- Kill the two biggest "slop" tells: the **Geist** font and the **teal/mint**
+  palette. Replace with characterful typography and a committed dark-first palette.
+- Keep the token architecture — the whole UI keys off CSS variables in
+  `globals.css`, so the swap flips every page with near-zero per-component churn.
+
+### Implementation
+- **Fonts** (`app/layout.tsx`): `Fraunces` (display serif) + `Hanken Grotesk`
+  (body/UI) + `JetBrains Mono` (figures), self-hosted via `next/font/google`.
+- **Palette** (`app/globals.css`): dark-first slate surfaces (`#0f1115` base),
+  warm ink (`#e8e4d9`), single amber accent (`#d4a017` / hover `#e8b730` /
+  soft `#4a3a12`); a light variant on the same tokens. State colors retuned to sit
+  on slate.
+- **Decoration:** retire the default gradients. `.text-gradient-brand` becomes a
+  restrained amber two-tone (used once, on the hero), `.btn-brand` becomes a solid
+  amber with dark ink text, `.panel-ink` becomes a true slate panel with a subtle
+  grain/vignette instead of a teal radial.
+- **Fix hardcoded leftovers:** the 1 inline teal shadow in
+  `app/(dashboard)/layout.tsx` (London/contract badge chips stay — they're
+  semantic category colors, not brand).
+
+### Acceptance
+- No `Geist` import remains; no teal/mint brand hex remains in `globals.css`.
+- App flips entirely (light + dark) off the new tokens; both themes legible.
+- `npm test` green; `npm run build` clean / 0 TS errors.
+
+### Definition of Done
+- [x] Meets Acceptance  - [x] `npm test` green (243)  - [x] `npm run build` clean / 0 TS
+- [x] No AI path affected (pure CSS/typography)  - [x] No schema change
+- [x] Dashboard + summary table updated
+
+---
+
 ## Effort & rationale
 
 **Total remaining effort:** ~20–25 dev-days (excluding testing & polish).
@@ -767,5 +1084,8 @@ path; AI re-rank pending a key)
   (email delivery ⏸️ needs `RESEND_API_KEY` + a scheduler).
 - **10 (AI matching)** ✅ deterministic matcher + /matches view + salary check
   (AI re-rank ⏸️ needs `ANTHROPIC_API_KEY`).
+- **10.5 (careers resolution)** ✅ real careers-page resolver + in-app ATS
+  listings on /matches, Browse, and research pages; AI layer uses **Gemini** +
+  Google-Search grounding (⏸️ needs `GEMINI_API_KEY` — free tier).
 - **8 (accounts/sync)** — **next up**; unlocks mobile and real multi-device use.
 - **7 (mobile)** is the longer-term investment.

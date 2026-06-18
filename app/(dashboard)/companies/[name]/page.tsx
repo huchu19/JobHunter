@@ -25,6 +25,8 @@ import { STATUS_META } from "@/app/lib/applicationStatus";
 import type { ApplicationStatus } from "@/app/types/application";
 import type { RatingDTO } from "@/app/types/company";
 import CompanyRatingsPanel from "@/app/components/companies/CompanyRatingsPanel";
+import CareersListings from "@/app/components/companies/CareersListings";
+import { resolveCareers } from "@/app/lib/resolveCareers";
 
 /**
  * Company research page: aggregated community ratings, the user's own
@@ -109,11 +111,19 @@ async function CompanyContent({ name }: { name: string }) {
 
   const total = estimateVisaTimeline();
 
+  // Resolve the real careers page (cached after first lookup); fall back to a
+  // Google search link when nothing was found.
+  const careers = await resolveCareers(name).catch(() => null);
+  const careersHref = careers?.careersUrl ?? googleCareersUrl(name);
+
   const researchLinks = [
     { label: "Glassdoor reviews & salaries", href: glassdoorSearchUrl(name) },
     { label: "Salary & benefits search", href: googleSalaryUrl(name) },
     { label: "LinkedIn jobs", href: linkedInJobsUrl(name) },
-    { label: "Careers page search", href: googleCareersUrl(name) },
+    {
+      label: careers?.careersUrl ? "Official careers page" : "Careers page search",
+      href: careersHref,
+    },
   ];
 
   return (
@@ -189,6 +199,28 @@ async function CompanyContent({ name }: { name: string }) {
                 </ul>
               </div>
             )}
+          </div>
+
+          {/* Live open roles */}
+          <div className="card p-6">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-foreground">
+                Open roles
+              </h2>
+              {careers?.careersUrl && (
+                <a
+                  href={careers.careersUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-brand-strong hover:underline"
+                >
+                  Careers site <ExternalLink size={12} />
+                </a>
+              )}
+            </div>
+            <div className="mt-1">
+              <CareersListings companyName={name} />
+            </div>
           </div>
 
           {/* Research links */}
