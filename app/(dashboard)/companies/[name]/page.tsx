@@ -27,6 +27,7 @@ import type { RatingDTO } from "@/app/types/company";
 import CompanyRatingsPanel from "@/app/components/companies/CompanyRatingsPanel";
 import CareersListings from "@/app/components/companies/CareersListings";
 import { resolveCareers } from "@/app/lib/resolveCareers";
+import { auth } from "@/app/auth";
 
 /**
  * Company research page: aggregated community ratings, the user's own
@@ -38,9 +39,15 @@ import { resolveCareers } from "@/app/lib/resolveCareers";
 async function getCompanyData(name: string) {
   const target = name.trim().toLowerCase();
 
+  const session = await auth();
+  const userId = session?.user?.id;
+  // Protected by proxy.ts; if somehow unauthenticated, show nothing user-owned.
+  if (!userId) return { ratings: [], companyApps: [] };
+
   const [companies, applications] = await Promise.all([
     prisma.company.findMany({ select: { id: true, name: true } }),
     prisma.application.findMany({
+      where: { userId },
       select: {
         id: true,
         company: true,
@@ -55,11 +62,11 @@ async function getCompanyData(name: string) {
     }),
   ]);
 
-  // SQLite Prisma has no case-insensitive mode — match in JS.
+  // Match company name in JS (the user-rated companies table is small).
   const company = companies.find((c) => c.name.toLowerCase() === target);
   const ratings = company
     ? await prisma.rating.findMany({
-        where: { companyId: company.id },
+        where: { companyId: company.id, userId },
         orderBy: { createdAt: "desc" },
       })
     : [];
