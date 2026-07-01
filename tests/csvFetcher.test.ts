@@ -3,7 +3,7 @@ import { fetchSponsorCSV } from "@/app/lib/csvFetcher";
 
 describe("csvFetcher", () => {
   describe("fetchSponsorCSV", () => {
-    it("returns CSV text on success from hardcoded fallback", async () => {
+    it("returns CSV text and date on success from hardcoded fallback", async () => {
       const mockCSV =
         'Sponsor Licence Number,Organisation Name,TierRating,Migrant Classification,Sponsor Status\nAAA111," Test Ltd",Worker (A rating),Skilled Worker,Licensed and Fully Active';
 
@@ -16,7 +16,8 @@ describe("csvFetcher", () => {
       );
 
       const result = await fetchSponsorCSV();
-      expect(result).toBe(mockCSV);
+      expect(result.csv).toBe(mockCSV);
+      expect(result.date).toBe("2026-06-29");
 
       vi.unstubAllGlobals();
     });

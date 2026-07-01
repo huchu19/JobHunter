@@ -9,8 +9,8 @@ async function runTests() {
 
   try {
     console.log("Fetching GOV.UK CSV...");
-    const csvText = await fetchSponsorCSV();
-    console.log("✓ CSV fetched successfully\n");
+    const { csv: csvText, date: csvDate } = await fetchSponsorCSV();
+    console.log(`✓ CSV fetched successfully (dated ${csvDate})\n`);
 
     console.log("Parsing CSV...");
     const parsed = Papa.parse<RawSponsorRow>(csvText, {

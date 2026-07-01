@@ -1,7 +1,7 @@
 const FALLBACK_CSV_URL =
-  "https://assets.publishing.service.gov.uk/media/6a27fac6f553ec11122217bf/2026-06-09_-_Worker_and_Temporary_Worker.csv";
+  "https://assets.publishing.service.gov.uk/media/6a422d3c7ac6fd9c6a94aab5/SP_-_Worker_and_Temporary_Worker_Web_Register_-_2026-06-29.csv";
 
-async function extractCSVLinkFromGovUK(): Promise<string | null> {
+async function extractCSVLinkFromGovUK(): Promise<{ url: string; date: string } | null> {
   try {
     const response = await fetch(
       "https://www.gov.uk/government/publications/register-of-licensed-sponsors-workers",
@@ -21,12 +21,23 @@ async function extractCSVLinkFromGovUK(): Promise<string | null> {
     const html = await response.text();
     // Prefer the absolute assets URL; fall back to first CSV href
     const absoluteMatch = html.match(/href="(https:\/\/assets\.publishing\.service\.gov\.uk[^"]+\.csv[^"]*)"/);
-    if (absoluteMatch) return absoluteMatch[1];
-    const match = html.match(/href="([^"]+\.csv[^"]*)"/);
-    return match?.[1] || null;
+    const csvUrl = absoluteMatch?.[1] || html.match(/href="([^"]*\.csv[^"]*)"/)?.[1];
+
+    if (!csvUrl) return null;
+
+    // Extract date from filename (e.g., "2026-06-29" from "...2026-06-29.csv")
+    const dateMatch = csvUrl.match(/(\d{4}-\d{2}-\d{2})/);
+    const csvDate = dateMatch?.[1] || new Date().toISOString().split("T")[0];
+
+    return { url: csvUrl, date: csvDate };
   } catch {
     return null;
   }
+}
+
+function extractDateFromUrl(url: string): string {
+  const dateMatch = url.match(/(\d{4}-\d{2}-\d{2})/);
+  return dateMatch?.[1] || new Date().toISOString().split("T")[0];
 }
 
 async function fetchCSVFromURL(url: string): Promise<string> {
@@ -47,11 +58,14 @@ async function fetchCSVFromURL(url: string): Promise<string> {
   return response.text();
 }
 
-export async function fetchSponsorCSV(): Promise<string> {
-  let csvLink = await extractCSVLinkFromGovUK();
+export async function fetchSponsorCSV(): Promise<{ csv: string; date: string }> {
+  let result = await extractCSVLinkFromGovUK();
+  let csvLink = result?.url;
+  let csvDate = result?.date;
 
   if (!csvLink) {
     csvLink = FALLBACK_CSV_URL;
+    csvDate = extractDateFromUrl(FALLBACK_CSV_URL);
   }
 
   // Make sure the URL is absolute
@@ -60,10 +74,15 @@ export async function fetchSponsorCSV(): Promise<string> {
   }
 
   try {
-    return await fetchCSVFromURL(csvLink);
+    const csv = await fetchCSVFromURL(csvLink);
+    return { csv, date: csvDate || extractDateFromUrl(csvLink) };
   } catch (error) {
     try {
-      return await fetchCSVFromURL(FALLBACK_CSV_URL);
+      const csv = await fetchCSVFromURL(FALLBACK_CSV_URL);
+      return {
+        csv,
+        date: extractDateFromUrl(FALLBACK_CSV_URL),
+      };
     } catch {
       throw new Error(
         "Could not fetch sponsor CSV from GOV.UK or fallback URL"
