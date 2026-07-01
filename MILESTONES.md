@@ -30,15 +30,16 @@ of Done" in [AGENTS.md](AGENTS.md).
 | 5 | Company Research & Ratings | ✅ Complete | Medium | — |
 | 6 | Smart Notifications | ✅ Complete (email ⏸️ needs key) | Low | — |
 | 7 | Mobile App | 🔄 Planned | Low | 4–5d |
-| 8 | User Accounts & Sync | 🔄 Planned | Medium | 2–3d |
+| 8 | User Accounts & Sync | ✅ Complete | Medium | — |
 | 9 | Visa Sponsorship Guide | ✅ Complete | Low | — |
 | 10 | Advanced Search & Matching | ✅ Complete (AI/email ⏸️ need keys) | Low | — |
 | 10.5 | Careers Resolution & In-App Listings | ✅ Complete (AI via `GEMINI_API_KEY`) | High | — |
 | 10.6 | Live Roles Feed & Save-to-Board | ✅ Complete | High | — |
 | 10.7 | Role-Based Matching (employers ranked by live roles) | ✅ Complete | High | — |
 | 11 | Visual Redesign — "Functional" theme (Linear-style) | ✅ Complete | Medium | — |
+| 11.1 | Brand logo (SVG mark, favicon, OG, extension icons) | ✅ Complete | Low | — |
 
-**Done:** 17 / 19  ·  **Next up:** Milestone 8 (User Accounts & Sync)
+**Done:** 19 / 20  ·  **Next up:** Milestone 7 (Mobile App) · extension auth-wiring + Chrome Web Store (Phase C)
 **Recommended order:** ~~5~~ → ~~9~~ → ~~6~~ → ~~10~~ → ~~10.5~~ → ~~10.6~~ → ~~10.7~~ → 8 → 7
 
 > Per-milestone **Definition of Done** (repeated as a checklist in each section):
@@ -81,6 +82,16 @@ Fill out the answers every job application asks for once, then reuse them everyw
 - [x] `app/components/profile/ProfileForm.tsx` (`/profile` page)
 - [x] Copy-to-clipboard on every answer
 - [x] Degrades gracefully without `ANTHROPIC_API_KEY` (manual entry works)
+
+**Update (Jun 30, 2026) — provider abstraction:** resume parsing was hardwired to
+Anthropic, so with no `ANTHROPIC_API_KEY` the upload "did nothing" (503). Made it
+**provider-agnostic** (`app/lib/resumeParser.ts`): prefer Anthropic when its key is
+set, else **Gemini** (PDF `inlineData` + JSON `responseSchema`, reusing
+`app/lib/gemini.ts`), else a clear 503 + manual entry. Only the Gemini call knows the
+provider; pure helpers (`selectResumeProvider`, `coerceParsedProfile`,
+`extractJsonObject`) are unit-tested (`tests/resumeParser.test.ts`, 11). `npm test`
+254 green; `npm run build` clean / 0 TS errors. Fixes the user's "profile not working"
+report using the Gemini key they have.
 
 **Future:** wire this profile into the Milestone 2 browser extension for true
 on-page form autofill (Greenhouse / Lever / Workday).
@@ -597,47 +608,83 @@ Native iOS + Android via Expo / React Native.
 
 ---
 
-## 🔄 Milestone 8: User Accounts & Sync
+## ✅ Milestone 8: User Accounts & Sync
 
-**Status:** 🔄 Planned · 2026 · Priority: Medium · Effort: 2–3d
+**Status:** ✅ Complete · Shipped Jun 30, 2026 · Priority: Medium · Effort: 2–3d
 
-Keep applications in sync across devices.
+Per-user accounts with Google sign-in, full data isolation, and a personal API
+token so the browser extension acts as the signed-in user. "Sync" is achieved by
+moving the single shared local DB to a hosted Postgres scoped by `userId` — every
+device that signs in sees the same private board.
 
 ### Implementation
-- `User` model; NextAuth.js auth.
-- Migrate applications off SQLite to cloud (PostgreSQL).
-- Realtime sync (WebSocket or polling).
-
-```prisma
-model User {
-  id           String        @id @default(cuid())
-  email        String        @unique
-  passwordHash String
-  applications Application[]
-  createdAt    DateTime      @default(now())
-}
-model Application {
-  // ... existing fields
-  userId String
-  user   User @relation(fields: [userId], references: [id])
-}
-```
+- **Datasource → PostgreSQL (Neon).** `prisma/schema.prisma` switched from
+  `sqlite` to `postgresql` with `directUrl` (Neon pooled `DATABASE_URL` for the
+  app, unpooled `DIRECT_URL` for migrations). Moved from `db push` to
+  `prisma migrate` — migration `add_users_and_scope_by_user`.
+- **Auth.js v5 (`next-auth@5`) + `@auth/prisma-adapter`, Google OAuth only**
+  (no password storage). `app/auth.ts` (config, database sessions, `session.user.id`
+  exposed via type augmentation in `types/next-auth.d.ts`),
+  `app/api/auth/[...nextauth]/route.ts` (handlers), `app/sign-in/page.tsx`
+  (Google button via server action). Provider list is empty when the OAuth env
+  vars are absent, so the build still succeeds without credentials.
+- **Next.js 16 `proxy.ts`** (the renamed `middleware`, runtime `nodejs` — needed
+  for the Prisma-adapter session lookup). Gates an explicit private-prefix
+  allowlist (`/dashboard`, `/profile`, …) and redirects unauthenticated users to
+  `/sign-in?callbackUrl=…`; unknown paths fall through to the 404. The landing
+  page `/` stays public.
+- **`User`/`Account`/`Session`/`VerificationToken`** models added; `userId` FK on
+  `Application` and `Rating`; `Profile` + `NotificationSettings` dropped the
+  `singleton` id for `@@unique([userId])` (one row per user).
+- **All data scoped by `userId`:** every API route reads the acting user and
+  filters/creates by it — `applications` (GET/POST), `applications/[id]`
+  (ownership on GET/PATCH/DELETE), `applications/[id]/activities`,
+  `applications/stats`, `profile`, `profile/parse-resume`, `settings`,
+  `companies/[name]/ratings`, `match`. The daily-job routes (`match/run`,
+  `notifications/run`) now iterate **per user**. Server components that read
+  Prisma directly (`StatsBar`, `/analytics`, `/companies/[name]`) scope to the
+  session user too.
+- **Personal API token for the extension.** `User.apiToken` (unique).
+  `GET /api/user/token` returns/creates it, `POST` rotates it (session-only).
+  `app/lib/auth.ts` `getUserIdFromRequest()` resolves **either** a NextAuth
+  session cookie **or** `Authorization: Bearer <token>` (extension path); a bad
+  token is an explicit 401, never a silent session fallback. Shown/managed on
+  `/settings` via `ApiTokenPanel`.
+- **CORS locked down** (`next.config.ts`): the blanket `*` on `/api/:path*` is
+  gone. Only `/api/profile` and `/api/applications` get cross-origin headers, and
+  both now require a valid bearer token — closing the anonymous data leak.
+- **Sidebar account UI:** `UserMenu` shows the signed-in email + a sign-out button
+  in the `(dashboard)` layout footer.
 
 ### Tasks
-- [ ] `User` model + scope `Application` by `userId` + migration
-- [ ] NextAuth.js signup/login (email+password or OAuth)
-- [ ] Move data to cloud DB
-- [ ] Realtime/near-realtime multi-device sync
-- [ ] Enforce per-user data isolation
+- [x] `User`/`Account`/`Session` models + scope `Application`/`Rating`/`Profile`/
+      `Settings` by `userId` + migration
+- [x] Auth.js v5 Google OAuth (Prisma adapter, DB sessions)
+- [x] Move data to cloud DB (Neon Postgres, `prisma migrate`)
+- [x] Multi-device access via hosted DB scoped per user
+- [x] Enforce per-user data isolation (routes + server components + ownership checks)
+- [x] Personal API token + bearer auth for the extension; lock down CORS
 
-**Testing:** Sign up → create application; sign in on another device → see it; edit
-on phone → refresh web → updated.
+**Testing:** `tests/auth.test.ts` covers token parsing, token generation, and
+`getUserIdFromRequest` resolution (valid token → user, bad token → 401 without
+session fallback, session fallback, fully anonymous → null). Manual: sign in with
+two Google accounts in separate browsers → each sees only their own board/profile;
+user A's token cannot read/write user B's rows.
 
-**Acceptance:** Multi-device sync works seamlessly; users only see their own data.
+**Acceptance:** Users only see their own data across devices; extension token auth
+works (GET /api/profile + POST /api/applications with bearer token succeed, wrong
+token → 401).
 
 ### Definition of Done
-- [ ] Meets Acceptance  - [ ] `npm test` green  - [ ] `npm run build` clean / 0 TS errors
-- [ ] Auth/data isolation verified  - [ ] Dashboard + summary table updated
+- [x] Meets Acceptance  - [x] `npm test` green (263 tests)  - [x] `npm run build` clean / 0 TS errors
+- [x] Auth/data isolation verified (unit) — ⏳ two-account browser smoke test pending OAuth redirect-URI registration
+- [x] Dashboard + summary table updated
+
+> **Deploy note:** add the production callback URL
+> `https://<domain>/api/auth/callback/google` to the Google OAuth client's
+> Authorized redirect URIs, and set `AUTH_SECRET`, `AUTH_GOOGLE_ID/SECRET`,
+> `DATABASE_URL`, `DIRECT_URL`, `GEMINI_API_KEY` in the host env. Run
+> `prisma migrate deploy` on build.
 
 ---
 
@@ -1066,6 +1113,41 @@ page chrome:
 ### Definition of Done
 - [x] Meets Acceptance  - [x] `npm test` green (243)  - [x] `npm run build` clean / 0 TS
 - [x] No AI path affected (pure CSS/typography)  - [x] No schema change
+- [x] Dashboard + summary table updated
+
+---
+
+## ✅ Milestone 11.1: Brand logo
+
+**Status:** ✅ Complete · **Date:** 2026-06-30
+
+### What
+Adopt the new "JOB" browser-window + magnifier logo as the product's identity:
+on-site brand mark, browser-tab favicon, social-share image, and the browser
+extension icons.
+
+### Implementation
+- **Vectorized the art** into a clean, hand-authored SVG (`public/job.svg`) so it
+  scales crisply and ships tiny — no raster tracing. The mark is self-contained
+  (carries its own colors), so it reads on both light and dark surfaces.
+- **`app/components/Logo.tsx`** — the same SVG inlined as a React component
+  (no flash, sits inline with the wordmark). Swapped in for the old `Compass`-in-a-
+  box mark in the marketing header (`app/page.tsx`) and the dashboard sidebar
+  (`app/(dashboard)/layout.tsx`). `Compass` stays as a nav/feature icon.
+- **Favicon:** regenerated `app/icon.png` (512²) from the SVG; Next.js App Router
+  auto-serves it as the tab icon.
+- **Social card:** rebuilt `app/opengraph-image.png` (1200×630) — logo centered on
+  the slate background with the wordmark + tagline.
+- **Extension:** regenerated `extension/icons/icon-{16,48,128}.png` from the SVG.
+
+### Acceptance
+- New logo shows in the tab, the marketing header, and the dashboard sidebar.
+- OG image and extension icons use the new mark.
+- `npm test` green; `npm run build` clean / 0 TS errors.
+
+### Definition of Done
+- [x] Meets Acceptance  - [x] `npm test` green (254)  - [x] `npm run build` clean / 0 TS
+- [x] No AI path affected (static assets)  - [x] No schema change
 - [x] Dashboard + summary table updated
 
 ---

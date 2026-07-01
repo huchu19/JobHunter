@@ -4,6 +4,7 @@ import {
   isRatingCategory,
   isValidStars,
 } from "@/app/lib/companyRatings";
+import { getUserIdFromRequest } from "@/app/lib/auth";
 
 /**
  * Ratings for a company, addressed by (URL-encoded) company name. The Company
@@ -29,6 +30,11 @@ export async function GET(
   { params }: { params: Promise<{ name: string }> }
 ) {
   try {
+    const userId = await getUserIdFromRequest(request);
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { name } = await params;
     const decoded = decodeURIComponent(name);
     const category = request.nextUrl.searchParams.get("category");
@@ -39,9 +45,11 @@ export async function GET(
       return Response.json({ company: null, ratings: [] });
     }
 
+    // Ratings are private to the user who left them.
     const ratings = await prisma.rating.findMany({
       where: {
         companyId: company.id,
+        userId,
         ...(category && isRatingCategory(category) ? { category } : {}),
       },
       orderBy: { createdAt: "desc" },
@@ -62,6 +70,11 @@ export async function POST(
   { params }: { params: Promise<{ name: string }> }
 ) {
   try {
+    const userId = await getUserIdFromRequest(request);
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { name } = await params;
     const decoded = decodeURIComponent(name).trim();
     if (!decoded) {
@@ -100,6 +113,7 @@ export async function POST(
     const rating = await prisma.rating.create({
       data: {
         companyId: company.id,
+        userId,
         rating: stars,
         category: body.category,
         comment,

@@ -4,6 +4,7 @@ import {
   filterRemindersByPrefs,
 } from "@/app/lib/reminders";
 import { isEmailConfigured } from "@/app/lib/email";
+import { auth } from "@/app/auth";
 
 /**
  * Everything due now, filtered by the saved notification preferences. Used by
@@ -12,8 +13,15 @@ import { isEmailConfigured } from "@/app/lib/email";
  */
 export async function GET() {
   try {
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const [apps, settings] = await Promise.all([
       prisma.application.findMany({
+        where: { userId },
         select: {
           id: true,
           company: true,
@@ -30,9 +38,9 @@ export async function GET() {
         },
       }),
       prisma.notificationSettings.upsert({
-        where: { id: "singleton" },
+        where: { userId },
         update: {},
-        create: { id: "singleton" },
+        create: { userId },
       }),
     ]);
 

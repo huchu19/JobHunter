@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import {
   LayoutDashboard,
   Compass,
   PanelLeftClose,
   PanelLeftOpen,
-  Radio,
   FileUser,
   BarChart3,
   BookOpen,
@@ -17,6 +16,10 @@ import {
   Sparkles,
 } from "lucide-react";
 import ThemeToggle from "@/app/components/ThemeToggle";
+import Logo from "@/app/components/Logo";
+import UserMenu from "@/app/components/UserMenu";
+import SponsorStatus from "@/app/components/SponsorStatus";
+import SponsorStatusFallback from "@/app/components/SponsorStatusFallback";
 
 interface NavLink {
   href: string;
@@ -51,18 +54,20 @@ export default function DashboardLayout({
           sidebarOpen ? "w-64" : "w-[76px]"
         } shrink-0 bg-surface border-r border-border transition-all duration-200 flex flex-col`}
       >
-        {/* Brand */}
+        {/* Brand — clicking returns to the root landing page */}
         <div className="h-[72px] flex items-center px-4 border-b border-border">
-          <div className="flex items-center gap-2.5 overflow-hidden">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand text-[color:var(--brand-contrast)] shadow-[var(--accent-glow)]">
-              <Compass size={20} strokeWidth={2.25} />
-            </span>
+          <Link
+            href="/"
+            aria-label="JobHunter — back to home"
+            className="flex items-center gap-2.5 overflow-hidden rounded-md transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Logo className="h-9 w-9 shrink-0" />
             {sidebarOpen && (
               <span className="display text-[17px] font-semibold tracking-tight leading-tight whitespace-nowrap">
-                UK Sponsor Finder
+                JobHunter
               </span>
             )}
-          </div>
+          </Link>
         </div>
 
         {/* Nav */}
@@ -109,21 +114,14 @@ export default function DashboardLayout({
         </div>
 
         {/* Live status */}
-        <div className="mx-3 mb-4 mt-3 rounded-xl border border-border bg-surface-muted p-3">
-          <div className="flex items-center gap-2">
-            <span className="relative grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-brand-soft text-brand-strong">
-              <Radio size={13} strokeWidth={2.5} />
-            </span>
-            {sidebarOpen && (
-              <div className="leading-tight">
-                <p className="text-[11px] font-bold tracking-wide text-foreground">
-                  LIVE · GOV.UK
-                </p>
-                <p className="text-[11px] text-muted">Updated today</p>
-              </div>
-            )}
-          </div>
-        </div>
+        {sidebarOpen && (
+          <Suspense fallback={<SponsorStatusFallback />}>
+            <SponsorStatus />
+          </Suspense>
+        )}
+
+        {/* Account: signed-in email + sign out */}
+        <UserMenu collapsed={!sidebarOpen} />
       </aside>
 
       {/* Main content. min-w-0/min-h-0 let flex children (e.g. the fixed-height

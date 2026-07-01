@@ -1,11 +1,12 @@
 import { NextRequest } from "next/server";
 import prisma from "@/app/lib/db";
 import { isEmailConfigured } from "@/app/lib/email";
+import { getUserIdFromRequest } from "@/app/lib/auth";
 
 /**
- * Singleton notification settings (same pattern as /api/profile). GET creates
- * the row with defaults on first read; PUT updates an explicit allow-list of
- * fields. `emailConfigured` is derived from the env, never stored.
+ * Per-user notification settings (one row per user). GET creates the row with
+ * defaults on first read; PUT updates an explicit allow-list of fields.
+ * `emailConfigured` is derived from the env, never stored.
  */
 
 const BOOLEAN_FIELDS = [
@@ -17,12 +18,17 @@ const BOOLEAN_FIELDS = [
   "browserEnabled",
 ] as const;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const userId = await getUserIdFromRequest(request);
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const settings = await prisma.notificationSettings.upsert({
-      where: { id: "singleton" },
+      where: { userId },
       update: {},
-      create: { id: "singleton" },
+      create: { userId },
     });
     return Response.json({
       settings: { ...settings, emailConfigured: isEmailConfigured() },
@@ -35,6 +41,11 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
+    const userId = await getUserIdFromRequest(request);
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const updates: Record<string, unknown> = {};
 
@@ -48,9 +59,9 @@ export async function PUT(request: NextRequest) {
     }
 
     const settings = await prisma.notificationSettings.upsert({
-      where: { id: "singleton" },
+      where: { userId },
       update: updates,
-      create: { id: "singleton", ...updates },
+      create: { userId, ...updates },
     });
 
     return Response.json({

@@ -11,10 +11,15 @@ import {
   StageGaps,
   StatusDistribution,
 } from "@/app/components/analytics/AnalyticsCharts";
+import { auth } from "@/app/auth";
 
 async function getApplications(): Promise<AnalyticsApplication[]> {
   try {
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) return [];
     return await prisma.application.findMany({
+      where: { userId },
       select: {
         status: true,
         createdAt: true,

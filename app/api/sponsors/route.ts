@@ -6,9 +6,11 @@ import Papa from "papaparse";
 
 export const revalidate = 86400; // ISR: 24 hours
 
-export async function GET() {
+export async function GET(request: Request) {
+  const force = new URL(request.url).searchParams.get("refresh") === "1";
+
   try {
-    const csvText = await fetchSponsorCSV();
+    const { csv: csvText, date: csvDate } = await fetchSponsorCSV();
 
     const parsed = Papa.parse<RawSponsorRow>(csvText, {
       header: true,
@@ -36,11 +38,14 @@ export async function GET() {
       {
         sponsors: enriched,
         total: enriched.length,
+        csvDate,
         lastFetched: new Date().toISOString(),
       },
       {
         headers: {
-          "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800",
+          "Cache-Control": force
+            ? "public, s-maxage=3600, stale-while-revalidate=604800"
+            : "public, s-maxage=86400, stale-while-revalidate=604800",
         },
       }
     );

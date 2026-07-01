@@ -3,10 +3,15 @@ import {
   computeDashboardStats,
   type StatApplication,
 } from "@/app/lib/applicationStats";
+import { auth } from "@/app/auth";
 
 async function getApplications(): Promise<StatApplication[]> {
   try {
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) return [];
     return await prisma.application.findMany({
+      where: { userId },
       select: {
         status: true,
         appliedAt: true,

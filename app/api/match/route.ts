@@ -12,6 +12,7 @@ import {
 } from "@/app/lib/gatherRoles";
 import { scoreRoles, rankEmployers } from "@/app/lib/roleMatcher";
 import type { FeedSource } from "@/app/lib/rolesFeed";
+import { auth } from "@/app/auth";
 
 /**
  * Matches, reworked: instead of scoring 35k sponsor *names* (which surfaced
@@ -27,9 +28,18 @@ const EXPAND_RESOLVE = 8; // how many extra sponsors to resolve when expanding
 
 export async function GET() {
   try {
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const [profile, applications] = await Promise.all([
-      prisma.profile.findUnique({ where: { id: "singleton" } }),
-      prisma.application.findMany({ select: { company: true, salary: true } }),
+      prisma.profile.findUnique({ where: { userId } }),
+      prisma.application.findMany({
+        where: { userId },
+        select: { company: true, salary: true },
+      }),
     ]);
 
     const signals = extractProfileSignals(profile ?? {});

@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import prisma from "@/app/lib/db";
+import { getUserIdFromRequest } from "@/app/lib/auth";
 
 const ACTIVITY_TYPES = ["interview", "note", "follow_up"] as const;
 
@@ -19,6 +20,11 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const userId = await getUserIdFromRequest(request);
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await params;
     const body = await request.json();
 
@@ -31,7 +37,9 @@ export async function POST(
       );
     }
 
-    const application = await prisma.application.findUnique({ where: { id } });
+    const application = await prisma.application.findFirst({
+      where: { id, userId },
+    });
     if (!application) {
       return Response.json({ error: "Not found" }, { status: 404 });
     }

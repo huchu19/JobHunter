@@ -1,4 +1,5 @@
 import NotificationSettingsForm from "@/app/components/settings/NotificationSettingsForm";
+import ApiTokenPanel from "@/app/components/settings/ApiTokenPanel";
 
 export default function SettingsPage() {
   return (
@@ -19,6 +20,7 @@ export default function SettingsPage() {
       <div className="flex-1 overflow-auto">
         <div className="mx-auto max-w-3xl p-8">
           <NotificationSettingsForm />
+          <ApiTokenPanel />
         </div>
       </div>
     </div>

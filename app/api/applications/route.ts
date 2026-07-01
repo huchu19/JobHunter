@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import prisma from "@/app/lib/db";
 import { fuzzyMatchSponsor } from "@/app/lib/sponsorMatch";
 import { fetchSponsorsFromCache } from "@/app/lib/sponsorCache";
+import { getUserIdFromRequest } from "@/app/lib/auth";
 
 /** Parses an incoming ISO date string into a Date, or null when absent/invalid. */
 function parseDate(value: unknown): Date | null {
@@ -17,9 +18,15 @@ function parsePriority(value: unknown): number {
   return Math.max(0, Math.min(5, Math.round(n)));
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const userId = await getUserIdFromRequest(request);
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const applications = await prisma.application.findMany({
+      where: { userId },
       orderBy: { updatedAt: "desc" },
     });
 
@@ -35,6 +42,11 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const userId = await getUserIdFromRequest(request);
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
 
     if (!body.company || !body.role) {
@@ -50,6 +62,7 @@ export async function POST(request: NextRequest) {
 
     const application = await prisma.application.create({
       data: {
+        userId,
         company: body.company,
         role: body.role,
         url: body.url || null,

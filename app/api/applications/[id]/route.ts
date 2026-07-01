@@ -6,6 +6,7 @@ import {
   stageTimestampField,
   nextActivityForTransition,
 } from "@/app/lib/applicationStatus";
+import { getUserIdFromRequest } from "@/app/lib/auth";
 
 const STRING_FIELDS = [
   "company",
@@ -46,13 +47,18 @@ function parsePriority(value: unknown): number {
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const userId = await getUserIdFromRequest(request);
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await params;
-    const application = await prisma.application.findUnique({
-      where: { id },
+    const application = await prisma.application.findFirst({
+      where: { id, userId },
       include: {
         activities: { orderBy: { occurredAt: "desc" } },
       },
@@ -77,10 +83,17 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const userId = await getUserIdFromRequest(request);
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const { id } = await params;
 
-    const existing = await prisma.application.findUnique({ where: { id } });
+    const existing = await prisma.application.findFirst({
+      where: { id, userId },
+    });
     if (!existing) {
       return Response.json({ error: "Not found" }, { status: 404 });
     }
@@ -156,15 +169,25 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const userId = await getUserIdFromRequest(request);
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await params;
 
-    await prisma.application.delete({
-      where: { id },
+    // Scope the delete to the owner; deleteMany returns count so a non-owned id
+    // is a clean 404 instead of a thrown "record not found".
+    const result = await prisma.application.deleteMany({
+      where: { id, userId },
     });
+    if (result.count === 0) {
+      return Response.json({ error: "Not found" }, { status: 404 });
+    }
 
     return Response.json({ success: true });
   } catch (error) {

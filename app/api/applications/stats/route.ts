@@ -3,6 +3,7 @@ import {
   computeAnalytics,
   type AnalyticsApplication,
 } from "@/app/lib/applicationAnalytics";
+import { auth } from "@/app/auth";
 
 /**
  * GET /api/applications/stats
@@ -14,7 +15,14 @@ import {
  */
 export async function GET() {
   try {
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const apps: AnalyticsApplication[] = await prisma.application.findMany({
+      where: { userId },
       select: {
         status: true,
         createdAt: true,

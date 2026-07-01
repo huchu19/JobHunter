@@ -6,12 +6,78 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// --- Auth.js (next-auth v5) models -------------------------------------------
+// User/Account/Session/VerificationToken are the schema the @auth/prisma-adapter
+// expects. A User owns all their app data (board, profile, settings, ratings).
+// `apiToken` is a long-lived personal token the Chrome extension sends as a
+// bearer credential, since cookie sessions don't flow cross-origin from job
+// boards (see app/lib/auth.ts).
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  apiToken      String?   @unique
+
+  accounts     Account[]
+  sessions     Session[]
+  applications Application[]
+  ratings      Rating[]
+  profile      Profile?
+  settings     NotificationSettings?
+
+  createdAt DateTime @default(now())
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
 }
 
 model Application {
   id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   company         String
   role            String
   url             String?
@@ -52,6 +118,7 @@ model Application {
 
   activities      Activity[]
 
+  @@index([userId])
   @@index([status])
   @@index([createdAt])
 }
@@ -75,11 +142,13 @@ model Activity {
   @@index([occurredAt])
 }
 
-// Single-row notification preferences (same singleton pattern as Profile).
+// Per-user notification preferences (one row per user, keyed by userId).
 // Email settings are stored even when no email transport is configured —
 // delivery is env-gated behind RESEND_API_KEY and no-ops without it.
 model NotificationSettings {
-  id String @id @default("singleton")
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Email
   emailEnabled      Boolean @default(false)
@@ -137,19 +206,24 @@ model Rating {
   id        String   @id @default(cuid())
   company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   companyId String
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   rating    Int // 1-5 stars
   comment   String?
   category  String // "work-culture" | "sponsorship" | "responsiveness"
   createdAt DateTime @default(now())
 
   @@index([companyId])
+  @@index([userId])
 }
 
-// Single-row reusable application profile. Holds answers to common job-application
-// questions, mostly auto-extracted from an uploaded resume via the Claude API.
+// Per-user reusable application profile. Holds answers to common job-application
+// questions, mostly auto-extracted from an uploaded resume (Anthropic or Gemini).
 // Surfaced on /profile with copy-to-clipboard for fast pasting into external forms.
 model Profile {
-  id String @id @default("singleton")
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Contact
   fullName     String?
@@ -171,16 +245,40 @@ model Profile {
   yearsExperience   String?
   currentTitle      String?
 
-  // Free-text blocks frequently re-pasted into applications
-  summary     String?
-  skills      String?
-  education   String?
-  workHistory String?
+  // Free-text blocks
+  summary String?
+  skills  String?
+
+  // Structured entries — stored as JSON arrays so each item can be copy-pasted
+  // into individual ATS fields without manual splitting.
+  // educationEntries:  [{institution, degree, field, grade, startYear, endYear}]
+  // experienceEntries: [{company, title, startDate, endDate, current, location, description}]
+  // certifications:    [{name, issuer, date, credentialUrl}]
+  // languages:         [{language, proficiency}]
+  // projects:          [{name, description, url, technologies}]
+  educationEntries   String? // JSON
+  experienceEntries  String? // JSON
+  certifications     String? // JSON
+  languages          String? // JSON
+  projects           String? // JSON
+
+  // Misc quick-fill answers
+  highestQualification String? // "Bachelor's" | "Master's" | "PhD" | etc.
+  willingToRelocate    String? // "yes" | "no" | "maybe"
+  drivingLicence       String? // "yes" | "no"
+  securityClearance    String? // "none" | "DBS" | "SC" | "DV"
 
   // Resume bookkeeping
   resumeText     String?
   resumeFileName String?
   resumeParsedAt DateTime?
+
+  // The original uploaded file, kept so the user can preview / download / replace
+  // it on /profile. `resumeData` is the file bytes base64-encoded (PDF or DOCX);
+  // `resumeMimeType` drives how it's served and whether it can be previewed inline
+  // (PDF yes, DOCX download-only — browsers can't render .docx).
+  resumeData     String?
+  resumeMimeType String?
 
   updatedAt DateTime @updatedAt
 }
