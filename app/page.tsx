@@ -9,9 +9,10 @@ import {
   FileUser,
   Radio,
 } from "lucide-react";
+import Logo from "@/app/components/Logo";
 
 export const metadata = {
-  title: "UK Sponsor Finder — track every visa-sponsored job application",
+  title: "JobHunter — track every visa-sponsored job application",
   description:
     "Search 34,000+ A-rated UK Skilled Worker sponsors, auto-verify every company you apply to against the live gov.uk register, and track it all on one board.",
 };
@@ -80,11 +81,9 @@ export default function Home() {
       <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2.5">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand text-[color:var(--brand-contrast)]">
-              <Compass size={18} strokeWidth={2.25} />
-            </span>
+            <Logo className="h-8 w-8" />
             <span className="display text-base font-semibold tracking-tight">
-              UK Sponsor Finder
+              JobHunter
             </span>
           </div>
           <nav className="flex items-center gap-2">
@@ -164,7 +163,7 @@ export default function Home() {
             <div className="grid grid-cols-3 gap-3">
               {[
                 { label: "Wishlist", n: 29, dot: "#94a3b8" },
-                { label: "Applied", n: 49, dot: "#7b7bf0" },
+                { label: "Applied", n: 49, dot: "#fbbf24" }, /* BRAND-REVERT: indigo was #7b7bf0 */
                 { label: "Interview", n: 3, dot: "#34d399" },
               ].map((col) => (
                 <div
@@ -271,8 +270,8 @@ export default function Home() {
                 Stop guessing who sponsors.
               </h2>
               <p className="mt-2 max-w-md text-[15px] text-white/70">
-                Open the board, search the register, and start tracking — no
-                account needed to look around.
+                Sign in with Google, search the register, and start tracking on
+                your own private board.
               </p>
             </div>
             <Link
@@ -288,7 +287,7 @@ export default function Home() {
       {/* ---- Footer ---- */}
       <footer className="mt-auto border-t border-border">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-8 text-sm text-muted-2 sm:flex-row">
-          <span>UK Sponsor Finder</span>
+          <span>JobHunter</span>
           <span>
             Sponsor data from the{" "}
             <a

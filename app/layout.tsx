@@ -19,7 +19,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "UK Sponsor Finder",
+  title: "JobHunter",
   description:
     "Find the UK employers who will actually sponsor your Skilled Worker visa — and track every application in one calm dashboard.",
 };
