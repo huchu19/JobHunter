@@ -168,7 +168,7 @@ export function buildWeeklyDigest(
 export function renderDigestText(digest: WeeklyDigest): string {
   const { stats, reminders } = digest;
   const lines = [
-    "Your week in the job hunt — UK Sponsor Finder",
+    "Your week in the job hunt — JobHunter",
     "",
     `Tracked applications: ${stats.total}`,
     `Applied this week: ${stats.appliedThisWeek}`,

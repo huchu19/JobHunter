@@ -243,7 +243,7 @@ export default function NotificationSettingsForm() {
         <button
           onClick={() =>
             showNotification(
-              "UK Sponsor Finder",
+              "JobHunter",
               "Notifications are working — you'll hear about stage changes here."
             )
           }

@@ -41,7 +41,7 @@ export async function sendEmail({
       },
       body: JSON.stringify({
         from:
-          process.env.EMAIL_FROM ?? "UK Sponsor Finder <onboarding@resend.dev>",
+          process.env.EMAIL_FROM ?? "JobHunter <onboarding@resend.dev>",
         to: [to],
         subject,
         text,
