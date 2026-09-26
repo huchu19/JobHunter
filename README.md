@@ -1,4 +1,4 @@
-# UK Sponsor Finder
+# JobHunter
 
 A full-stack job application tracker with integrated UK visa sponsor search. Find Skilled Worker sponsors and manage your job applications in one place.
 
